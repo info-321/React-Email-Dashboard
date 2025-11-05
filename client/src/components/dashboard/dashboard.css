@@ -1,0 +1,312 @@
+.dashboard-shell {
+    min-height: 100vh;
+    padding: 2rem 3rem;
+    color: #f5f7ff;
+    background: radial-gradient(circle at top, #0f2550, #050a18 75%);
+    font-family: "Urbanist", "Inter", system-ui, sans-serif;
+}
+
+.dashboard-nav {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.6rem;
+    border-radius: 20px;
+    background: rgba(15, 33, 66, 0.35);
+    border: 1px solid rgba(130, 178, 255, 0.2);
+    backdrop-filter: blur(16px);
+    transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.dashboard-nav:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 50px rgba(8, 19, 45, 0.4);
+}
+
+.nav-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(126, 179, 255, 0.35);
+    background: rgba(10, 26, 54, 0.4);
+    color: #cfe0ff;
+    border-radius: 999px;
+    padding: 0.45rem 0.95rem;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.mode-toggle .material-symbols-rounded {
+    font-size: 18px;
+}
+
+.mode-toggle:hover {
+    background: rgba(126, 179, 255, 0.2);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.nav-title {
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.nav-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #041028;
+    background: linear-gradient(135deg, #7bc6ff, #3475ff);
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(52, 117, 255, 0.35);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.nav-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 45px rgba(61, 125, 255, 0.5);
+}
+
+.nav-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 10px 25px rgba(61, 125, 255, 0.35);
+}
+
+.dashboard-content {
+    margin-top: 3rem;
+}
+
+.dashboard-toolbar {
+    margin: 2.25rem auto 0;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    max-width: 640px;
+}
+
+.search-box {
+    flex: 0 1 360px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(122, 166, 255, 0.3);
+    background: rgba(10, 22, 49, 0.6);
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.search-box:focus-within {
+    border-color: rgba(122, 178, 255, 0.7);
+    box-shadow: 0 0 0 2px rgba(73, 122, 255, 0.2);
+}
+
+.search-box .material-symbols-rounded {
+    font-size: 24px;
+    color: rgba(198, 214, 255, 0.8);
+}
+
+.search-box input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: #f5f7ff;
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.search-box input::placeholder {
+    color: rgba(201, 217, 255, 0.65);
+}
+
+.search-box input:focus {
+    outline: none;
+}
+
+.primary-btn {
+    border: none;
+    border-radius: 16px;
+    padding: 0.75rem 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: inherit;
+    color: #08122a;
+    background: linear-gradient(135deg, #71c4ff, #2f66ff);
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.primary-btn:hover {
+    transform: translateY(-2px);
+}
+
+.primary-btn:active {
+    transform: translateY(0);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.toolbar-error {
+    text-align: center;
+    color: #ffb4b4;
+    margin-top: 0.7rem;
+    font-weight: 500;
+}
+
+.email-list {
+    margin: 1.5rem auto 0;
+    padding: 0.4rem 1rem;
+    border-radius: 16px;
+    background: rgba(9, 20, 44, 0.6);
+    border: 1px solid rgba(126, 171, 255, 0.2);
+    width: min(640px, 90%);
+    list-style: none;
+}
+
+.email-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.email-list li:last-child {
+    border-bottom: none;
+}
+
+.email-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ghost-btn {
+    border: 1px solid rgba(131, 179, 255, 0.4);
+    background: transparent;
+    color: #cbe0ff;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    cursor: pointer;
+    transition: all 120ms ease;
+}
+
+.ghost-btn:hover {
+    background: rgba(110, 160, 255, 0.18);
+    color: #fff;
+}
+
+.ghost-btn.danger {
+    border-color: rgba(255, 139, 139, 0.6);
+    color: #ffdbdb;
+}
+
+.ghost-btn.danger:hover {
+    background: rgba(255, 139, 139, 0.2);
+}
+
+.ghost-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dashboard-shell.light {
+    background: linear-gradient(180deg, #eef2ff 0%, #d9e4ff 100%);
+    color: #0f1b33;
+}
+
+.dashboard-shell.light .dashboard-nav {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(184, 198, 235, 0.8);
+}
+
+.dashboard-shell.light .nav-title {
+    color: #0f274f;
+}
+
+.dashboard-shell.light .mode-toggle {
+    border-color: rgba(116, 138, 185, 0.5);
+    background: rgba(17, 40, 86, 0.04);
+    color: #253b63;
+}
+
+.dashboard-shell.light .nav-btn {
+    color: #041028;
+    box-shadow: none;
+}
+
+.dashboard-shell.light .search-box {
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(141, 165, 215, 0.6);
+}
+
+.dashboard-shell.light .search-box input {
+    color: #1d2f55;
+}
+
+.dashboard-shell.light .search-box .material-symbols-rounded {
+    color: rgba(37, 53, 94, 0.5);
+}
+
+.dashboard-shell.light .primary-btn {
+    color: #041028;
+    box-shadow: none;
+}
+
+.dashboard-shell.light .email-list {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(174, 190, 232, 0.6);
+}
+
+.dashboard-shell.light .email-list li {
+    border-bottom-color: rgba(18, 33, 70, 0.08);
+    color: #1a2c4e;
+}
+
+.dashboard-shell.light .ghost-btn {
+    border-color: rgba(136, 157, 210, 0.5);
+    color: #203457;
+}
+
+.dashboard-shell.light .ghost-btn:hover {
+    background: rgba(136, 157, 210, 0.2);
+}
+
+.dashboard-shell.light .ghost-btn.danger {
+    border-color: rgba(238, 128, 128, 0.7);
+    color: #a32020;
+}
+
+.dashboard-content h2 {
+    font-size: 2.2rem;
+    margin-bottom: 0.8rem;
+}
+
+.dashboard-content p {
+    font-size: 1.1rem;
+    opacity: 0.85;
+}
