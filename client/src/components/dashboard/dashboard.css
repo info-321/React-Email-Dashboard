@@ -234,6 +234,29 @@
     cursor: not-allowed;
 }
 
+.inline-loader {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(200, 214, 255, 0.4);
+    border-top-color: rgba(243, 248, 255, 0.95);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-left: 0.45rem;
+}
+
+.inline-loader.right {
+    margin-left: 0.55rem;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .dashboard-shell.light {
     background: linear-gradient(180deg, #eef2ff 0%, #d9e4ff 100%);
     color: #0f1b33;

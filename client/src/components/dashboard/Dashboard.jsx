@@ -14,6 +14,7 @@ const Dashboard = ({
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [removingEmail, setRemovingEmail] = useState("");
+  const [signingInEmail, setSigningInEmail] = useState("");
 
   useEffect(() => {
     const fetchEmails = async () => {
@@ -128,10 +129,15 @@ const Dashboard = ({
               <div className="email-actions">
                 <button
                   className="ghost-btn"
-                  onClick={() => onSignInMailbox?.(email)}
+                  disabled={!!signingInEmail}
+                  onClick={() => {
+                    setSigningInEmail(email);
+                    setTimeout(() => onSignInMailbox?.(email), 150);
+                  }}
                 >
-                  Sign In
+                  {signingInEmail === email ? "Signing…" : "Sign In"}
                 </button>
+                {signingInEmail === email && <span className="inline-loader" />}
                 <button
                   className="ghost-btn danger"
                   onClick={() => handleRemoveEmail(email)}
@@ -139,6 +145,9 @@ const Dashboard = ({
                 >
                   {removingEmail === email ? "Removing..." : "Remove"}
                 </button>
+                {removingEmail === email && (
+                  <span className="inline-loader right" />
+                )}
               </div>
             </li>
           ))}
