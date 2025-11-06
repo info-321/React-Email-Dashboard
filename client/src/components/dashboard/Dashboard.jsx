@@ -3,11 +3,15 @@ import "./dashboard.css";
 
 const API_BASE_URL = "http://localhost:5001/api";
 
-const Dashboard = ({ onLogout }) => {
+const Dashboard = ({
+  onLogout,
+  onSignInMailbox,
+  isLightMode,
+  onToggleTheme,
+}) => {
   const [emailInput, setEmailInput] = useState("");
   const [emails, setEmails] = useState([]);
   const [error, setError] = useState("");
-  const [isLightMode, setIsLightMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [removingEmail, setRemovingEmail] = useState("");
 
@@ -81,7 +85,7 @@ const Dashboard = ({ onLogout }) => {
         <div className="nav-actions">
           <button
             className="mode-toggle"
-            onClick={() => setIsLightMode((prev) => !prev)}
+            onClick={onToggleTheme}
             aria-label="Toggle color mode"
           >
             <span className="material-symbols-rounded">
@@ -122,7 +126,12 @@ const Dashboard = ({ onLogout }) => {
             <li key={email}>
               <span>{email}</span>
               <div className="email-actions">
-                <button className="ghost-btn">Sign In</button>
+                <button
+                  className="ghost-btn"
+                  onClick={() => onSignInMailbox?.(email)}
+                >
+                  Sign In
+                </button>
                 <button
                   className="ghost-btn danger"
                   onClick={() => handleRemoveEmail(email)}
@@ -137,7 +146,7 @@ const Dashboard = ({ onLogout }) => {
       )}
 
       {/* <div className="dashboard-content">
-        <h2>Welcome back, Admin ??</h2>
+        <h2>Welcome back, Admin 👋</h2>
         <p>You are now logged in as the TTW administrator.</p>
       </div> */}
     </section>

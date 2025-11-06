@@ -1,0 +1,439 @@
+@import url("https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600&family=Material+Symbols+Rounded&display=swap");
+
+.email-shell {
+    --sidebar-width: 220px;
+    min-height: 100vh;
+    padding: 1.5rem;
+    font-family: "Urbanist", "Inter", system-ui, sans-serif;
+    background: radial-gradient(circle at top, #141633, #040516 70%);
+    color: #eef1ff;
+}
+
+.email-shell.light {
+    background: linear-gradient(135deg, #e6ebff, #f9e9ff);
+    color: #152044;
+}
+
+.email-shell .material-symbols-rounded {
+    font-size: 20px;
+}
+
+.email-topbar {
+    max-width: 1300px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.9rem 1.8rem;
+    border-radius: 24px;
+    background: rgba(16, 20, 45, 0.55);
+    border: 1px solid rgba(124, 160, 255, 0.18);
+    backdrop-filter: blur(18px);
+}
+
+.email-shell.light .email-topbar {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(177, 192, 233, 0.5);
+    color: #152044;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    font-weight: 600;
+}
+
+.brand-label {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.search-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(125, 162, 255, 0.2);
+}
+
+.search-pill input {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 0.95rem;
+}
+
+.search-pill input:focus {
+    outline: none;
+}
+
+.mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 999px;
+    border: 1px solid rgba(115, 146, 212, 0.35);
+    padding: 0.45rem 0.85rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.pill-btn {
+    border-radius: 999px;
+    border: none;
+    padding: 0.55rem 1.4rem;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, #8cb7ff, #5278ff);
+    color: #fff;
+}
+
+.pill-btn.primary {
+    align-self: flex-start;
+}
+
+.pill-btn.ghost {
+    background: transparent;
+    border: 1px solid rgba(126, 162, 239, 0.4);
+    color: inherit;
+}
+
+.gmail-frame {
+    max-width: 1300px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 360px 1fr;
+    border-radius: 28px;
+    overflow: hidden;
+    border: 1px solid rgba(107, 141, 214, 0.25);
+    background: rgba(12, 17, 36, 0.65);
+    backdrop-filter: blur(24px);
+    transition: grid-template-columns 240ms ease;
+}
+
+.email-shell.sidebar-collapsed {
+    --sidebar-width: 72px;
+}
+
+.email-shell.light .gmail-frame {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(182, 196, 233, 0.6);
+}
+
+.gmail-sidebar {
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    width: var(--sidebar-width);
+    transition: width 200ms ease, padding 200ms ease, transform 200ms ease;
+}
+
+.gmail-sidebar.collapsed {
+    width: 72px;
+    padding: 1.4rem 0.6rem;
+}
+
+.email-shell.light .gmail-sidebar {
+    border-right-color: rgba(22, 31, 60, 0.08);
+}
+
+.sidebar-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(160, 186, 255, 0.35);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.gmail-sidebar.collapsed .pill-btn.primary,
+.gmail-sidebar.collapsed .label-item .label-text,
+.gmail-sidebar.collapsed .section-title,
+.gmail-sidebar.collapsed .labels-section .label-item .label-text,
+.gmail-sidebar.collapsed .ghost-back {
+    opacity: 0;
+    pointer-events: none;
+    height: 0;
+    margin: 0;
+}
+
+.gmail-sidebar.collapsed .sidebar-toggle {
+    align-self: center;
+}
+
+.gmail-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.nav-icon {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    background: transparent;
+    color: inherit;
+    padding: 0.5rem 0.75rem;
+    border-radius: 14px;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.nav-icon.active,
+.nav-icon:hover {
+    background: rgba(255, 255, 255, 0.12);
+    opacity: 1;
+}
+
+.mailbox-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.label-menu {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.labels-section .section-title {
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    opacity: 0.6;
+    margin: 0.3rem 0;
+}
+
+.label-item {
+    border: none;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    border-radius: 12px;
+    padding: 0.35rem 0.4rem;
+    opacity: 0.75;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.label-item .material-symbols-rounded {
+    font-size: 18px;
+}
+
+.label-item.active {
+    background: rgba(255, 255, 255, 0.14);
+    opacity: 1;
+}
+
+.gmail-list-pane {
+    padding: 1.5rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.email-shell.light .gmail-list-pane {
+    border-right-color: rgba(22, 31, 60, 0.08);
+}
+
+.list-controls {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    gap: 1rem;
+}
+
+.control-icons {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.control-icons button,
+.mail-count button {
+    border: none;
+    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+
+.email-shell.light .control-icons button,
+.email-shell.light .mail-count button {
+    background: rgba(28, 40, 68, 0.08);
+}
+
+.mail-count {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-weight: 600;
+}
+
+.list-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.list-tabs.single {
+    justify-content: flex-start;
+}
+
+.list-tabs button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-weight: 600;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.list-tabs button.active {
+    border-color: #8cb7ff;
+}
+
+.badge {
+    margin-left: 0.35rem;
+    background: #29d6a1;
+    color: #041525;
+    border-radius: 999px;
+    padding: 0.05rem 0.4rem;
+    font-size: 0.7rem;
+}
+
+.gmail-thread-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: 0.8rem;
+}
+
+.gmail-thread-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+}
+
+.gmail-thread-list li.active {
+    background: rgba(140, 183, 255, 0.25);
+}
+
+.thread-sender {
+    margin: 0;
+    font-weight: 600;
+}
+
+.thread-subject {
+    margin: 0.2rem 0;
+    font-weight: 600;
+}
+
+.thread-snippet {
+    margin: 0;
+    opacity: 0.75;
+    font-size: 0.9rem;
+}
+
+.gmail-detail-pane {
+    padding: 2.4rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 0;
+}
+
+.detail-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.detail-top-actions {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.icon-btn {
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    cursor: pointer;
+}
+
+.email-shell.light .icon-btn {
+    background: rgba(22, 31, 60, 0.08);
+}
+
+.gmail-message {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 1.5rem;
+}
+
+.email-shell.light .gmail-message {
+    background: rgba(245, 247, 255, 0.95);
+}
+
+.message-heading {
+    font-size: 1.05rem;
+    margin-bottom: 0.8rem;
+}
+
+@media (max-width: 1024px) {
+    .gmail-frame {
+        grid-template-columns: 1fr;
+    }
+
+    .gmail-sidebar {
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+    }
+
+    .gmail-list-pane {
+        border-right: none;
+    }
+}
