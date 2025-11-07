@@ -1,0 +1,6 @@
+# Secrets and environment-specific config
+server/workspace_service_account.json
+.env
+*.env
+*.key
+*.pem
