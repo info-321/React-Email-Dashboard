@@ -48,6 +48,14 @@ const decodeEntities = (input) => {
   return textarea.value;
 };
 
+const sanitizeHtml = (html = "") =>
+  html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+
+const formatPlainText = (text = "") =>
+  text.replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br />");
+
 const buildAttachmentUrl = (mailbox, messageId, attachment) => {
   if (!mailbox || !messageId || !attachment?.attachmentId) return "#";
   const base = `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
@@ -458,6 +466,65 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
               </button>
             )}
           </form>
+          <div className="topbar-controls">
+            <div className="control-group">
+              {[
+                {
+                  icon: allSelected ? "check_box" : "check_box_outline_blank",
+                  label: allSelected ? "Clear selection" : "Select",
+                  action: handleToggleSelectAll,
+                  disabled: !threads.length,
+                },
+                {
+                  icon: "archive",
+                  label: "Archive",
+                  action: () => handleBulkAction("archive"),
+                  disabled: !canBulkAct,
+                },
+                {
+                  icon: "delete",
+                  label: "Trash",
+                  action: () => handleBulkAction("delete"),
+                  disabled: !canBulkAct,
+                },
+                {
+                  icon: "refresh",
+                  label: "Refresh",
+                  action: handleRefresh,
+                  disabled: threadsLoading,
+                },
+              ].map(({ icon, label, action, disabled }) => (
+                <button
+                  type="button"
+                  key={icon}
+                  title={label}
+                  onClick={action}
+                  disabled={disabled}
+                >
+                  <span className="material-symbols-rounded">{icon}</span>
+                </button>
+              ))}
+            </div>
+            <div className="topbar-mail-count">
+              <span>{mailCountLabel}</span>
+              <button
+                type="button"
+                title="Prev"
+                disabled={!prevPageTokens.length}
+                onClick={goToPrevPage}
+              >
+                <span className="material-symbols-rounded">chevron_left</span>
+              </button>
+              <button
+                type="button"
+                title="Next"
+                disabled={!nextPageToken}
+                onClick={goToNextPage}
+              >
+                <span className="material-symbols-rounded">chevron_right</span>
+              </button>
+            </div>
+          </div>
           <button
             type="button"
             className="mode-toggle"
@@ -541,15 +608,9 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
             {userLabels.length === 0 && !overviewLoading && (
               <span className="empty-text">No labels</span>
             )}
-            {userLabels.slice(0, 3).map((label) => (
-              <button key={label.id} className="label-item" type="button">
-                <span className="material-symbols-rounded">label</span>
-                <span className="label-text">{label.name}</span>
-              </button>
-            ))}
-            {userLabels.length > 3 && (
+            {userLabels.length > 0 && (
               <div className="label-scroll">
-                {userLabels.slice(3).map((label) => (
+                {userLabels.map((label) => (
                   <button key={label.id} className="label-item" type="button">
                     <span className="material-symbols-rounded">label</span>
                     <span className="label-text">{label.name}</span>
@@ -561,66 +622,6 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
         </aside>
 
         <section className="gmail-list-pane">
-          <div className="list-controls">
-            <div className="control-icons">
-              {[
-                {
-                  icon: allSelected ? "check_box" : "check_box_outline_blank",
-                  label: allSelected ? "Clear selection" : "Select",
-                  action: handleToggleSelectAll,
-                  disabled: !threads.length,
-                },
-                {
-                  icon: "archive",
-                  label: "Archive",
-                  action: () => handleBulkAction("archive"),
-                  disabled: !canBulkAct,
-                },
-                {
-                  icon: "delete",
-                  label: "Trash",
-                  action: () => handleBulkAction("delete"),
-                  disabled: !canBulkAct,
-                },
-                {
-                  icon: "refresh",
-                  label: "Refresh",
-                  action: handleRefresh,
-                  disabled: threadsLoading,
-                },
-              ].map(({ icon, label, action, disabled }) => (
-                <button
-                  type="button"
-                  key={icon}
-                  title={label}
-                  onClick={action}
-                  disabled={disabled}
-                >
-                  <span className="material-symbols-rounded">{icon}</span>
-                </button>
-              ))}
-            </div>
-            <div className="mail-count">
-              <span>{mailCountLabel}</span>
-              <button
-                type="button"
-                title="Prev"
-                disabled={!prevPageTokens.length}
-                onClick={goToPrevPage}
-              >
-                <span className="material-symbols-rounded">chevron_left</span>
-              </button>
-              <button
-                type="button"
-                title="Next"
-                disabled={!nextPageToken}
-                onClick={goToNextPage}
-              >
-                <span className="material-symbols-rounded">chevron_right</span>
-              </button>
-            </div>
-          </div>
-
           <div className="list-tabs single">
             <button type="button" className="active">
               {activeFolderMeta.name}
@@ -703,11 +704,26 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
 
               <article className="gmail-message">
                 <p className="message-heading">{selectedThread.subject}</p>
-                <p>
-                  {selectedThread.decodedSnippet ||
-                    selectedThread.snippet ||
-                    "No preview available."}
-                </p>
+                {selectedThread.bodyHtml ? (
+                  <div
+                    className="gmail-body"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(selectedThread.bodyHtml),
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="gmail-body"
+                    dangerouslySetInnerHTML={{
+                      __html: formatPlainText(
+                        selectedThread.bodyPlain ||
+                          selectedThread.decodedSnippet ||
+                          selectedThread.snippet ||
+                          ""
+                      ),
+                    }}
+                  />
+                )}
                 {selectedThread.attachments?.length ? (
                   <div className="attachment-list">
                     {selectedThread.attachments.map((attachment) => (

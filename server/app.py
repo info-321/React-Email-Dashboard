@@ -124,6 +124,34 @@ def extract_attachments(payload, message_id):
     return attachments
 
 
+def extract_body_content(payload):
+    result = {"text": "", "html": ""}
+
+    def _walk(part):
+        if not part:
+            return
+        mime = (part.get("mimeType") or "").lower()
+        body = part.get("body", {})
+        data = body.get("data")
+        decoded = ""
+        if data:
+            try:
+                decoded = base64.urlsafe_b64decode(data.encode("utf-8")).decode(
+                    "utf-8", errors="replace"
+                )
+            except Exception:
+                decoded = ""
+        if mime == "text/html" and decoded and not result["html"]:
+            result["html"] = decoded
+        elif mime == "text/plain" and decoded and not result["text"]:
+            result["text"] = decoded
+        for child in part.get("parts", []) or []:
+            _walk(child)
+
+    _walk(payload)
+    return result
+
+
 def fetch_messages(service, user_email: str, label_ids=None, query=None, max_results=25, page_token=None):
     try:
         list_args = {
@@ -148,7 +176,9 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
                 metadataHeaders=['Subject', 'From', 'To', 'Date', 'Cc']
             ).execute()
             headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
-            attachments = extract_attachments(msg.get('payload'), msg['id'])
+            payload = msg.get('payload')
+            attachments = extract_attachments(payload, msg['id'])
+            body_content = extract_body_content(payload)
             messages.append({
                 'id': msg['id'],
                 'snippet': msg.get('snippet', ''),
@@ -160,6 +190,8 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
                 'labelIds': msg.get('labelIds', []),
                 'attachments': attachments,
                 'hasAttachments': bool(attachments),
+                'bodyHtml': body_content.get('html', ''),
+                'bodyPlain': body_content.get('text', ''),
             })
         return messages, response.get('nextPageToken'), response.get('resultSizeEstimate')
     except HttpError as err:
