@@ -1,8 +1,9 @@
 import base64
+import io
 import json
 import os
 from email.mime.text import MIMEText
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -24,7 +25,7 @@ LABEL_CONFIG = {
     'starred': {'label_ids': ['STARRED']},
     'spam': {'label_ids': ['SPAM']},
     'deleted': {'label_ids': ['TRASH']},
-    'archive': {'label_ids': ['ALL'], 'query': '-in:trash -in:spam'},
+    'archive': {'query': '-in:trash -in:spam', 'use_profile_total': True},
 }
 
 app = Flask(__name__)
@@ -62,22 +63,65 @@ def build_gmail_service(user_email: str):
 
 
 def fetch_label_counts(service, user_email: str):
-    stats = {}
     response = service.users().labels().list(userId=user_email).execute()
     labels = response.get('labels', [])
-    totals = {label['id'].lower(): label.get('messagesTotal') for label in labels}
+    label_map = {label['id']: label for label in labels}
+
+    required_ids = {
+        label_id
+        for cfg in LABEL_CONFIG.values()
+        for label_id in cfg.get('label_ids', []) or []
+    }
+    missing_ids = [
+        label_id for label_id in required_ids
+        if label_id not in label_map or label_map[label_id].get('messagesTotal') is None
+    ]
+    for label_id in missing_ids:
+        detail = service.users().labels().get(userId=user_email, id=label_id).execute()
+        label_map[label_id] = detail
+
+    profile = service.users().getProfile(userId=user_email).execute()
+    stats = {}
     for key, cfg in LABEL_CONFIG.items():
-        label_ids = cfg.get('label_ids', [])
-        stats[key] = 0
-        for label_id in label_ids:
-            count = totals.get(label_id.lower())
-            if count is not None:
-                stats[key] = count
+        if cfg.get('use_profile_total'):
+            stats[key] = profile.get('messagesTotal', 0)
+            continue
+        count = 0
+        for label_id in cfg.get('label_ids', []) or []:
+            data = label_map.get(label_id)
+            if data and data.get('messagesTotal') is not None:
+                count = data.get('messagesTotal', 0)
                 break
+        stats[key] = count
+
     return stats, [
-        {'id': label['id'], 'name': label['name'], 'type': label.get('type')}
+        {
+            'id': label['id'],
+            'name': label.get('name'),
+            'type': label.get('type'),
+            'messagesTotal': label_map.get(label['id'], {}).get('messagesTotal')
+        }
         for label in labels
     ]
+
+
+def extract_attachments(payload, message_id):
+    attachments = []
+    stack = [payload] if payload else []
+    while stack:
+        part = stack.pop()
+        filename = part.get('filename')
+        body = part.get('body', {})
+        if filename and body.get('attachmentId'):
+            attachments.append({
+                'filename': filename,
+                'mimeType': part.get('mimeType'),
+                'size': body.get('size'),
+                'attachmentId': body.get('attachmentId'),
+                'messageId': message_id,
+            })
+        stack.extend(part.get('parts', []) or [])
+    return attachments
 
 
 def fetch_messages(service, user_email: str, label_ids=None, query=None, max_results=25, page_token=None):
@@ -97,16 +141,25 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
         message_refs = response.get('messages', [])
         messages = []
         for ref in message_refs:
-            msg = service.users().messages().get(userId=user_email, id=ref['id'], format='metadata', metadataHeaders=['Subject', 'From', 'To', 'Date']).execute()
+            msg = service.users().messages().get(
+                userId=user_email,
+                id=ref['id'],
+                format='full',
+                metadataHeaders=['Subject', 'From', 'To', 'Date', 'Cc']
+            ).execute()
             headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
+            attachments = extract_attachments(msg.get('payload'), msg['id'])
             messages.append({
                 'id': msg['id'],
                 'snippet': msg.get('snippet', ''),
                 'subject': headers.get('Subject', '(No subject)'),
                 'from': headers.get('From', ''),
                 'to': headers.get('To', ''),
+                'cc': headers.get('Cc', ''),
                 'date': headers.get('Date', ''),
                 'labelIds': msg.get('labelIds', []),
+                'attachments': attachments,
+                'hasAttachments': bool(attachments),
             })
         return messages, response.get('nextPageToken'), response.get('resultSizeEstimate')
     except HttpError as err:
@@ -220,6 +273,45 @@ def mailbox_messages(email):
         return jsonify({'error': f'Unexpected error: {exc}'}), 500
 
 
+@app.post('/api/mailbox/<path:email>/messages/bulk')
+def modify_messages(email):
+    payload = request.get_json() or {}
+    message_ids = payload.get('messageIds') or []
+    action = (payload.get('action') or '').lower()
+
+    if not message_ids:
+        return jsonify({'error': 'messageIds are required.'}), 400
+    if action not in {'archive', 'delete'}:
+        return jsonify({'error': 'Unsupported action.'}), 400
+
+    try:
+        service = build_gmail_service(email)
+        modify_body = {'ids': message_ids}
+        remove_labels = []
+        add_labels = []
+        if action == 'archive':
+            remove_labels = ['INBOX']
+        elif action == 'delete':
+            remove_labels = ['INBOX']
+            add_labels = ['TRASH']
+
+        if remove_labels:
+            modify_body['removeLabelIds'] = remove_labels
+        if add_labels:
+            modify_body['addLabelIds'] = add_labels
+
+        service.users().messages().batchModify(
+            userId=email,
+            body=modify_body
+        ).execute()
+        return jsonify({'updated': len(message_ids)})
+    except HttpError as err:
+        return jsonify({'error': f'Gmail API error: {err}'}), err.status_code
+    except Exception as exc:
+        app.logger.exception("Unexpected error while modifying messages for %s", email)
+        return jsonify({'error': f'Unexpected error: {exc}'}), 500
+
+
 def encode_message(to_addr, subject, body):
     message = MIMEText(body)
     message['to'] = to_addr
@@ -246,6 +338,39 @@ def send_message(email):
     except HttpError as err:
         return jsonify({'error': f'Gmail API error: {err}'}), err.status_code
     except Exception as exc:
+        return jsonify({'error': f'Unexpected error: {exc}'}), 500
+
+
+@app.get('/api/mailbox/<path:email>/attachments/<message_id>/<attachment_id>')
+def download_attachment(email, message_id, attachment_id):
+    filename = request.args.get('filename', 'attachment')
+    mime_type = request.args.get('mimeType', 'application/octet-stream')
+    try:
+        service = build_gmail_service(email)
+        attachment = service.users().messages().attachments().get(
+            userId=email, messageId=message_id, id=attachment_id
+        ).execute()
+        data = attachment.get('data')
+        if not data:
+            return jsonify({'error': 'Attachment data unavailable.'}), 404
+
+        file_bytes = base64.urlsafe_b64decode(data.encode('utf-8'))
+        buffer = io.BytesIO(file_bytes)
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            mimetype=mime_type or 'application/octet-stream',
+            as_attachment=True,
+            download_name=filename or 'attachment'
+        )
+    except HttpError as err:
+        return jsonify({'error': f'Gmail API error: {err}'}), err.status_code
+    except Exception as exc:
+        app.logger.exception(
+            "Unexpected error while downloading attachment %s for %s",
+            attachment_id,
+            email
+        )
         return jsonify({'error': f'Unexpected error: {exc}'}), 500
 
 

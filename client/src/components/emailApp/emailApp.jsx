@@ -3,6 +3,7 @@ import "./EmailApp.css";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+const PAGE_SIZE = 25;
 
 const folderDefinitions = [
   { key: "inbox", name: "Inbox", icon: "inbox" },
@@ -26,6 +27,40 @@ const formatTimestamp = (value) => {
   });
 };
 
+const formatBytes = (size) => {
+  if (size === undefined || size === null) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = size;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const precision = value >= 10 ? 0 : 1;
+  return `${value.toFixed(precision)} ${units[unit]}`;
+};
+
+const decodeEntities = (input) => {
+  if (!input) return "";
+  if (typeof document === "undefined") return input;
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = input;
+  return textarea.value;
+};
+
+const buildAttachmentUrl = (mailbox, messageId, attachment) => {
+  if (!mailbox || !messageId || !attachment?.attachmentId) return "#";
+  const base = `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
+    mailbox
+  )}/attachments/${encodeURIComponent(messageId)}/${encodeURIComponent(
+    attachment.attachmentId
+  )}`;
+  const params = new URLSearchParams();
+  if (attachment.filename) params.append("filename", attachment.filename);
+  if (attachment.mimeType) params.append("mimeType", attachment.mimeType);
+  return `${base}?${params.toString()}`;
+};
+
 const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -45,6 +80,9 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   const [prevPageTokens, setPrevPageTokens] = useState([]);
   const [nextPageToken, setNextPageToken] = useState(null);
   const [resultEstimate, setResultEstimate] = useState(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeForm, setComposeForm] = useState({
@@ -100,6 +138,8 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
     setPrevPageTokens([]);
     setNextPageToken(null);
     setResultEstimate(null);
+    setPageIndex(0);
+    setSelectedIds([]);
   };
 
   useEffect(() => {
@@ -128,12 +168,9 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
         setThreadsLoading(true);
         setThreadsError("");
         const params = new URLSearchParams({ folder: activeFolder });
-        if (activeQuery) {
-          params.append("query", activeQuery);
-        }
-        if (pageToken) {
-          params.append("pageToken", pageToken);
-        }
+        if (activeQuery) params.append("query", activeQuery);
+        if (pageToken) params.append("pageToken", pageToken);
+
         const response = await fetch(
           `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
             mailbox
@@ -144,7 +181,14 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
           throw new Error(data.error || "Failed to load messages.");
         }
         if (!ignore) {
-          setThreads(data.messages || []);
+          const hydrated = (data.messages || []).map((message) => ({
+            attachments: [],
+            hasAttachments: false,
+            decodedSnippet: decodeEntities(message.snippet),
+            ...message,
+          }));
+          setThreads(hydrated);
+          setSelectedIds([]);
           setNextPageToken(data.nextPageToken || null);
           setResultEstimate(
             typeof data.resultSizeEstimate === "number"
@@ -168,7 +212,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
     return () => {
       ignore = true;
     };
-  }, [mailbox, activeFolder, activeQuery, pageToken]);
+  }, [mailbox, activeFolder, activeQuery, pageToken, refreshKey]);
 
   useEffect(() => {
     setSelectedThread((current) => {
@@ -188,8 +232,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
           label.type === "user" &&
           label.labelListVisibility !== "hide" &&
           !(label.name || "").startsWith("CATEGORY_")
-      )
-      .slice(0, 6) || [];
+      ) || [];
 
   const activeFolderMeta =
     folderDefinitions.find((folder) => folder.key === activeFolder) ||
@@ -199,7 +242,20 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   const totalForLabel =
     resultEstimate ??
     (typeof totalForFolder === "number" ? totalForFolder : visibleCount);
-  const mailCountLabel = `${visibleCount ? 1 : 0}-${visibleCount} of ${totalForLabel}`;
+  const startRange = threads.length ? pageIndex * PAGE_SIZE + 1 : 0;
+  const endRange = pageIndex * PAGE_SIZE + threads.length;
+  const mailCountLabel = `${startRange}-${endRange || 0} of ${
+    typeof totalForFolder === "number" ? totalForLabel : "many"
+  }`;
+  const allSelected =
+    threads.length > 0 && selectedIds.length === threads.length;
+  const availableTargets =
+    selectedIds.length > 0
+      ? selectedIds
+      : selectedThread
+      ? [selectedThread.id]
+      : [];
+  const canBulkAct = availableTargets.length > 0;
 
   const handleFolderSelect = (folderKey) => {
     if (folderKey === activeFolder) return;
@@ -226,6 +282,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
     if (!nextPageToken) return;
     setPrevPageTokens((prev) => [...prev, pageToken]);
     setPageToken(nextPageToken);
+    setPageIndex((prev) => prev + 1);
   };
 
   const goToPrevPage = () => {
@@ -236,6 +293,49 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
       setPageToken(prevToken);
       return copy;
     });
+    setPageIndex((prev) => Math.max(prev - 1, 0));
+  };
+
+  const handleToggleSelectAll = () => {
+    if (!threads.length) return;
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(threads.map((thread) => thread.id));
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  const handleBulkAction = async (action) => {
+    if (!mailbox || !availableTargets.length) return;
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
+          mailbox
+        )}/messages/bulk`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messageIds: availableTargets, action }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to ${action} messages.`);
+      }
+      setThreads((prev) =>
+        prev.filter((thread) => !availableTargets.includes(thread.id))
+      );
+      setSelectedIds([]);
+      if (availableTargets.includes(selectedThread?.id)) {
+        setSelectedThread(null);
+      }
+    } catch (err) {
+      setThreadsError(err.message || "Unable to update messages.");
+    }
   };
 
   const handleComposeField = (field, value) => {
@@ -281,30 +381,33 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   };
 
   const threadList = (
-    <ul className="gmail-thread-list">
+    <ul className="gmail-thread-list scrollable">
       {threadsLoading && (
         <li className="loading-row">Loading emails...</li>
       )}
       {!threadsLoading && !threads.length && (
         <li className="loading-row">
-          {activeQuery
-            ? `No results for "${activeQuery}".`
-            : "No messages in this folder."}
+          {activeQuery ? `No results for "${activeQuery}".` : "No messages in this folder."}
         </li>
       )}
       {!threadsLoading &&
         threads.map((thread) => (
           <li
             key={thread.id}
-            className={selectedThread?.id === thread.id ? "active" : ""}
+            className={`${selectedThread?.id === thread.id ? "active" : ""} ${
+              selectedIds.includes(thread.id) ? "checked" : ""
+            }`}
             onClick={() => setSelectedThread(thread)}
+            title="Open thread"
           >
             <div className="thread-preview">
               <p className="thread-sender">
                 {thread.from || thread.to || "Unknown sender"}
               </p>
               <p className="thread-subject">{thread.subject}</p>
-              <p className="thread-snippet">{thread.snippet}</p>
+              <p className="thread-snippet">
+                {thread.decodedSnippet || thread.snippet}
+              </p>
             </div>
             <span className="thread-time">{formatTimestamp(thread.date)}</span>
           </li>
@@ -339,6 +442,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
               type="submit"
               className="pill-btn compact"
               disabled={threadsLoading && activeQuery === searchInput.trim()}
+              title="Search"
             >
               Go
             </button>
@@ -348,6 +452,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
                 className="icon-only"
                 onClick={clearSearch}
                 aria-label="Clear search"
+                title="Clear filter"
               >
                 <span className="material-symbols-rounded">close</span>
               </button>
@@ -357,13 +462,19 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
             type="button"
             className="mode-toggle"
             onClick={onToggleTheme}
+            title={isLightMode ? "Dark mode" : "Light mode"}
           >
             <span className="material-symbols-rounded">
               {isLightMode ? "dark_mode" : "light_mode"}
             </span>
             {isLightMode ? "Dark" : "Light"}
           </button>
-          <button type="button" className="pill-btn ghost" onClick={onBack}>
+          <button
+            type="button"
+            className="pill-btn ghost"
+            onClick={onBack}
+            title="Back"
+          >
             Back
           </button>
         </div>
@@ -378,6 +489,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
             className="sidebar-toggle"
             onClick={() => setSidebarOpen((prev) => !prev)}
             aria-label="Toggle sidebar"
+            title="Sidebar"
           >
             <span className="material-symbols-rounded">menu</span>
           </button>
@@ -389,6 +501,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
               setComposeOpen(true);
               setComposeStatus({ loading: false, error: "", success: "" });
             }}
+            title="Compose"
           >
             Compose
           </button>
@@ -428,20 +541,61 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
             {userLabels.length === 0 && !overviewLoading && (
               <span className="empty-text">No labels</span>
             )}
-            {userLabels.map((label) => (
+            {userLabels.slice(0, 3).map((label) => (
               <button key={label.id} className="label-item" type="button">
                 <span className="material-symbols-rounded">label</span>
                 <span className="label-text">{label.name}</span>
               </button>
             ))}
+            {userLabels.length > 3 && (
+              <div className="label-scroll">
+                {userLabels.slice(3).map((label) => (
+                  <button key={label.id} className="label-item" type="button">
+                    <span className="material-symbols-rounded">label</span>
+                    <span className="label-text">{label.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </aside>
 
         <section className="gmail-list-pane">
           <div className="list-controls">
             <div className="control-icons">
-              {["check_box", "archive", "delete", "event"].map((icon) => (
-                <button type="button" key={icon} title={icon}>
+              {[
+                {
+                  icon: allSelected ? "check_box" : "check_box_outline_blank",
+                  label: allSelected ? "Clear selection" : "Select",
+                  action: handleToggleSelectAll,
+                  disabled: !threads.length,
+                },
+                {
+                  icon: "archive",
+                  label: "Archive",
+                  action: () => handleBulkAction("archive"),
+                  disabled: !canBulkAct,
+                },
+                {
+                  icon: "delete",
+                  label: "Trash",
+                  action: () => handleBulkAction("delete"),
+                  disabled: !canBulkAct,
+                },
+                {
+                  icon: "refresh",
+                  label: "Refresh",
+                  action: handleRefresh,
+                  disabled: threadsLoading,
+                },
+              ].map(({ icon, label, action, disabled }) => (
+                <button
+                  type="button"
+                  key={icon}
+                  title={label}
+                  onClick={action}
+                  disabled={disabled}
+                >
                   <span className="material-symbols-rounded">{icon}</span>
                 </button>
               ))}
@@ -450,7 +604,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
               <span>{mailCountLabel}</span>
               <button
                 type="button"
-                title="Previous page"
+                title="Prev"
                 disabled={!prevPageTokens.length}
                 onClick={goToPrevPage}
               >
@@ -458,7 +612,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
               </button>
               <button
                 type="button"
-                title="Next page"
+                title="Next"
                 disabled={!nextPageToken}
                 onClick={goToNextPage}
               >
@@ -510,11 +664,37 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
                     {selectedThread.date && (
                       <small>{formatTimestamp(selectedThread.date)}</small>
                     )}
+                    {selectedThread.cc && (
+                      <small className="detail-cc">Cc: {selectedThread.cc}</small>
+                    )}
                   </div>
                 </div>
                 <div className="detail-top-actions">
-                  {["archive", "delete", "mark_email_unread"].map((icon) => (
-                    <button key={icon} type="button" className="icon-btn">
+                  {[
+                    {
+                      icon: "archive",
+                      label: "Archive",
+                      handler: () => handleBulkAction("archive"),
+                    },
+                    {
+                      icon: "delete",
+                      label: "Trash",
+                      handler: () => handleBulkAction("delete"),
+                    },
+                    {
+                      icon: "mark_email_unread",
+                      label: "Refresh",
+                      handler: handleRefresh,
+                    },
+                  ].map(({ icon, label, handler }) => (
+                    <button
+                      key={icon}
+                      type="button"
+                      className="icon-btn"
+                      title={label}
+                      onClick={handler}
+                      disabled={!selectedThread}
+                    >
                       <span className="material-symbols-rounded">{icon}</span>
                     </button>
                   ))}
@@ -523,7 +703,43 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
 
               <article className="gmail-message">
                 <p className="message-heading">{selectedThread.subject}</p>
-                <p>{selectedThread.snippet || "No preview available."}</p>
+                <p>
+                  {selectedThread.decodedSnippet ||
+                    selectedThread.snippet ||
+                    "No preview available."}
+                </p>
+                {selectedThread.attachments?.length ? (
+                  <div className="attachment-list">
+                    {selectedThread.attachments.map((attachment) => (
+                      <div
+                        className="attachment-chip"
+                        key={attachment.attachmentId || attachment.filename}
+                      >
+                        <span className="material-symbols-rounded">
+                          attach_file
+                        </span>
+                        <div>
+                          <p>{attachment.filename || attachment.mimeType}</p>
+                          {attachment.size && (
+                            <small>{formatBytes(attachment.size)}</small>
+                          )}
+                        </div>
+                        <a
+                          href={buildAttachmentUrl(
+                            mailbox,
+                            attachment.messageId || selectedThread.id,
+                            attachment
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Download"
+                        >
+                          Download
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </article>
             </>
           ) : (
