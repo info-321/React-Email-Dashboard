@@ -178,7 +178,10 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
                 format='full',
                 metadataHeaders=['Subject', 'From', 'To', 'Date', 'Cc']
             ).execute()
-            headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
+            headers = {
+                (h.get('name') or '').lower(): h.get('value', '')
+                for h in msg.get('payload', {}).get('headers', [])
+            }
             payload = msg.get('payload')
             attachments = extract_attachments(payload, msg['id'])
             label_ids = msg.get('labelIds', []) or []
@@ -186,11 +189,11 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
             messages.append({
                 'id': msg['id'],
                 'snippet': msg.get('snippet', ''),
-                'subject': headers.get('Subject', '(No subject)'),
-                'from': headers.get('From', ''),
-                'to': headers.get('To', ''),
-                'cc': headers.get('Cc', ''),
-                'date': headers.get('Date', ''),
+                'subject': headers.get('subject') or '(No subject)',
+                'from': headers.get('from', ''),
+                'to': headers.get('to', ''),
+                'cc': headers.get('cc', ''),
+                'date': headers.get('date', ''),
                 'labelIds': label_ids,
                 'attachments': attachments,
                 'hasAttachments': bool(attachments),
