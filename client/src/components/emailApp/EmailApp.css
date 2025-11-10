@@ -564,6 +564,13 @@
     border-color: #8cb7ff;
 }
 
+.list-tabs .folder-pill {
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    font-weight: 600;
+}
+
 .badge {
     margin-left: 0.35rem;
     background: #29d6a1;
@@ -958,6 +965,15 @@
     gap: 0.75rem;
 }
 
+.compose-row {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.compose-field.inline {
+    flex: 1;
+}
+
 .compose-field {
     display: flex;
     flex-direction: column;
@@ -990,6 +1006,108 @@
 .compose-field textarea {
     resize: vertical;
     min-height: 140px;
+}
+
+.compose-field textarea {
+    min-height: 140px;
+}
+
+.compose-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.35rem;
+    position: relative;
+}
+
+.compose-tool-buttons {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.compose-tool-buttons button {
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+
+.email-shell.light .compose-tool-buttons button {
+    background: rgba(28, 40, 68, 0.08);
+}
+
+.compose-tool-buttons button:hover {
+    opacity: 0.8;
+}
+
+.emoji-picker {
+    position: absolute;
+    bottom: -120px;
+    left: 0;
+    padding: 0.4rem 0.6rem;
+    border-radius: 16px;
+    background: rgba(8, 9, 24, 0.92);
+    border: 1px solid rgba(126, 162, 239, 0.3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    z-index: 5;
+}
+
+.email-shell.light .emoji-picker {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(126, 162, 239, 0.3);
+}
+
+.emoji-picker button {
+    border: none;
+    background: transparent;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.compose-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.attachment-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(126, 162, 239, 0.25);
+}
+
+.attachment-pill p {
+    margin: 0;
+    font-weight: 600;
+}
+
+.attachment-pill small {
+    opacity: 0.7;
+}
+
+.attachment-pill button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+
+.email-shell.light .attachment-pill {
+    background: rgba(23, 33, 62, 0.06);
+    border-color: rgba(126, 162, 239, 0.2);
 }
 
 .compose-actions {

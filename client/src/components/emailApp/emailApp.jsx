@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./EmailApp.css";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const PAGE_SIZE = 25;
+const EMOJI_PRESET = ["😀", "😁", "😊", "😍", "🤩", "🤗", "👍", "🙏", "🚀", "✨", "❤️"];
 
 const folderDefinitions = [
   { key: "inbox", name: "Inbox", icon: "inbox" },
@@ -93,16 +94,22 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeForm, setComposeForm] = useState({
+  const buildComposeDefaults = () => ({
     to: "",
+    cc: "",
+    bcc: "",
     subject: "",
     body: "",
+    attachments: [],
   });
+  const [composeForm, setComposeForm] = useState(buildComposeDefaults);
   const [composeStatus, setComposeStatus] = useState({
     loading: false,
     error: "",
     success: "",
   });
+  const fileInputRef = useRef(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -389,6 +396,108 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
     handleBulkAction(nextState ? "star" : "unstar", [thread.id]);
   };
 
+  const handleAttachmentSelect = (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const readers = files.map(
+      (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result;
+            const base64 =
+              typeof result === "string" ? result.split(",").pop() : "";
+            resolve({
+              filename: file.name,
+              contentType: file.type || "application/octet-stream",
+              size: file.size,
+              data: base64,
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        })
+    );
+
+    Promise.all(readers)
+      .then((attachments) => {
+        setComposeForm((prev) => ({
+          ...prev,
+          attachments: [...prev.attachments, ...attachments],
+        }));
+      })
+      .finally(() => {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      });
+  };
+
+  const handleRemoveAttachment = (index) => {
+    setComposeForm((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setComposeForm((prev) => ({
+      ...prev,
+      body: `${prev.body}${emoji}`,
+    }));
+    setShowEmojiPicker(false);
+  };
+
+  const handlePrintDraft = () => {
+    if (typeof window === "undefined") return;
+    const printWindow = window.open("", "_blank", "width=720,height=820");
+    if (!printWindow) return;
+    const attachmentsList = composeForm.attachments
+      .map(
+        (file, idx) =>
+          `<li>${idx + 1}. ${file.filename} (${Math.round(file.size / 1024)} KB)</li>`
+      )
+      .join("");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Draft Preview</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #111; }
+            h2 { margin-bottom: 8px; }
+            p { margin: 4px 0; }
+            pre { white-space: pre-wrap; padding: 12px; border: 1px solid #ddd; border-radius: 12px; background: #f8f8f8; }
+          </style>
+        </head>
+        <body>
+          <h2>${composeForm.subject || "(No subject)"}</h2>
+          <p><strong>To:</strong> ${composeForm.to || "—"}</p>
+          ${
+            composeForm.cc
+              ? `<p><strong>CC:</strong> ${composeForm.cc}</p>`
+              : ""
+          }
+          ${
+            composeForm.bcc
+              ? `<p><strong>BCC:</strong> ${composeForm.bcc}</p>`
+              : ""
+          }
+          <h3>Message</h3>
+          <pre>${composeForm.body || ""}</pre>
+          ${
+            composeForm.attachments.length
+              ? `<h4>Attachments</h4><ul>${attachmentsList}</ul>`
+              : ""
+          }
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
   const handleComposeField = (field, value) => {
     setComposeForm((prev) => ({ ...prev, [field]: value }));
     setComposeStatus((prev) => ({ ...prev, error: "", success: "" }));
@@ -397,6 +506,9 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   const closeCompose = () => {
     setComposeOpen(false);
     setComposeStatus({ loading: false, error: "", success: "" });
+    setComposeForm(buildComposeDefaults());
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setShowEmojiPicker(false);
   };
 
   const handleComposeSubmit = async (event) => {
@@ -416,7 +528,8 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
       if (!response.ok) {
         throw new Error(data.error || "Unable to send email.");
       }
-      setComposeForm({ to: "", subject: "", body: "" });
+      setComposeForm(buildComposeDefaults());
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setComposeStatus({
         loading: false,
         error: "",
@@ -643,6 +756,9 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
             onClick={() => {
               setComposeOpen(true);
               setComposeStatus({ loading: false, error: "", success: "" });
+              setComposeForm(buildComposeDefaults());
+              setShowEmojiPicker(false);
+              if (fileInputRef.current) fileInputRef.current.value = "";
             }}
             title="Compose"
           >
@@ -699,9 +815,10 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
 
         <section className="gmail-list-pane">
           <div className="list-tabs single">
-            <button type="button" className="active">
-              {activeFolderMeta.name}
-              <span className="badge">{threads.length}</span>
+            <button type="button" className="active folder-pill">
+              {activeFolderMeta.key === "inbox"
+                ? "All Mails"
+                : activeFolderMeta.name}
             </button>
             {activeQuery && (
               <span className="search-chip">
@@ -844,11 +961,11 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
 
       {composeOpen && (
         <div className="compose-modal" onClick={closeCompose} role="dialog">
-          <form
-            className="compose-dialog"
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={handleComposeSubmit}
-          >
+      <form
+        className="compose-dialog"
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={handleComposeSubmit}
+      >
             <header className="compose-header">
               <h3>New message</h3>
               <button
@@ -875,6 +992,31 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
                 />
               </label>
 
+              <div className="compose-row">
+                <label className="compose-field inline">
+                  <span>CC</span>
+                  <input
+                    type="text"
+                    value={composeForm.cc}
+                    onChange={(event) =>
+                      handleComposeField("cc", event.target.value)
+                    }
+                    placeholder="cc@example.com"
+                  />
+                </label>
+                <label className="compose-field inline">
+                  <span>BCC</span>
+                  <input
+                    type="text"
+                    value={composeForm.bcc}
+                    onChange={(event) =>
+                      handleComposeField("bcc", event.target.value)
+                    }
+                    placeholder="bcc@example.com"
+                  />
+                </label>
+              </div>
+
               <label className="compose-field">
                 <span>Subject</span>
                 <input
@@ -899,8 +1041,75 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
                   required
                   placeholder="Write your message..."
                 />
+                <div className="compose-tools">
+                  <div className="compose-tool-buttons">
+                    <button
+                      type="button"
+                      title="Attach file"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <span className="material-symbols-rounded">attach_file</span>
+                    </button>
+                    <button
+                      type="button"
+                      title="Insert emoji"
+                      onClick={() => setShowEmojiPicker((prev) => !prev)}
+                    >
+                      <span className="material-symbols-rounded">mood</span>
+                    </button>
+                    <button
+                      type="button"
+                      title="Print draft"
+                      onClick={() => handlePrintDraft()}
+                    >
+                      <span className="material-symbols-rounded">print</span>
+                    </button>
+                  </div>
+                  {showEmojiPicker && (
+                    <div className="emoji-picker">
+                      {EMOJI_PRESET.map((emoji) => (
+                        <button
+                          type="button"
+                          key={emoji}
+                          onClick={() => handleEmojiSelect(emoji)}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </label>
+
+              {composeForm.attachments.length > 0 && (
+                <div className="compose-attachments">
+                  {composeForm.attachments.map((attachment, index) => (
+                    <div className="attachment-pill" key={`${attachment.filename}-${index}`}>
+                      <span className="material-symbols-rounded">attach_file</span>
+                      <div>
+                        <p>{attachment.filename}</p>
+                        <small>{Math.round(attachment.size / 1024)} KB</small>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Remove attachment"
+                        onClick={() => handleRemoveAttachment(index)}
+                      >
+                        <span className="material-symbols-rounded">close</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            <input
+              type="file"
+              hidden
+              ref={fileInputRef}
+              onChange={handleAttachmentSelect}
+              multiple
+            />
 
             {(composeStatus.error || composeStatus.success) && (
               <p

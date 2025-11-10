@@ -2,7 +2,10 @@ import base64
 import io
 import json
 import os
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from google.oauth2 import service_account
@@ -350,10 +353,40 @@ def modify_messages(email):
         return jsonify({'error': f'Unexpected error: {exc}'}), 500
 
 
-def encode_message(to_addr, subject, body):
-    message = MIMEText(body)
+def encode_message(to_addr, subject, body, cc=None, bcc=None, attachments=None):
+    attachments = attachments or []
+    cc = (cc or "").strip()
+    bcc = (bcc or "").strip()
+
+    if attachments:
+        message = MIMEMultipart()
+        message.attach(MIMEText(body, 'plain'))
+        for attachment in attachments:
+            filename = attachment.get('filename') or 'attachment'
+            content_type = attachment.get('contentType') or 'application/octet-stream'
+            data = attachment.get('data')
+            if not data:
+                continue
+            try:
+                payload = base64.b64decode(data)
+            except Exception:
+                continue
+            maintype, subtype = content_type.split('/', 1) if '/' in content_type else ('application', 'octet-stream')
+            part = MIMEBase(maintype, subtype)
+            part.set_payload(payload)
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+            message.attach(part)
+    else:
+        message = MIMEText(body, 'plain')
+
     message['to'] = to_addr
     message['subject'] = subject
+    if cc:
+        message['Cc'] = cc
+    if bcc:
+        message['Bcc'] = bcc
+
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
     return {'raw': raw}
 
@@ -362,15 +395,25 @@ def encode_message(to_addr, subject, body):
 def send_message(email):
     payload = request.get_json() or {}
     to_addr = payload.get('to', '').strip()
+    cc_addr = payload.get('cc', '').strip()
+    bcc_addr = payload.get('bcc', '').strip()
     subject = payload.get('subject', '').strip()
     body = payload.get('body', '').strip()
+    attachments = payload.get('attachments') or []
 
     if not to_addr or not subject or not body:
         return jsonify({'error': 'All fields are required.'}), 400
 
     try:
         service = build_gmail_service(email)
-        message = encode_message(to_addr, subject, body)
+        message = encode_message(
+            to_addr,
+            subject,
+            body,
+            cc=cc_addr,
+            bcc=bcc_addr,
+            attachments=attachments
+        )
         result = service.users().messages().send(userId=email, body=message).execute()
         return jsonify({'messageId': result.get('id')})
     except HttpError as err:
