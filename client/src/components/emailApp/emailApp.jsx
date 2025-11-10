@@ -304,6 +304,16 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
     setPageIndex((prev) => Math.max(prev - 1, 0));
   };
 
+  const handleThreadSelect = (threadId, checked) => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        if (prev.includes(threadId)) return prev;
+        return [...prev, threadId];
+      }
+      return prev.filter((id) => id !== threadId);
+    });
+  };
+
   const handleToggleSelectAll = () => {
     if (!threads.length) return;
     if (allSelected) {
@@ -317,8 +327,9 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const handleBulkAction = async (action) => {
-    if (!mailbox || !availableTargets.length) return;
+  const handleBulkAction = async (action, explicitTargets) => {
+    const targets = explicitTargets || availableTargets;
+    if (!mailbox || !targets.length) return;
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
@@ -327,23 +338,55 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messageIds: availableTargets, action }),
+          body: JSON.stringify({ messageIds: targets, action }),
         }
       );
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || `Failed to ${action} messages.`);
       }
-      setThreads((prev) =>
-        prev.filter((thread) => !availableTargets.includes(thread.id))
-      );
-      setSelectedIds([]);
-      if (availableTargets.includes(selectedThread?.id)) {
-        setSelectedThread(null);
+      if (action === "star" || action === "unstar") {
+        const starredValue = action === "star";
+        const updateLabels = (labels = []) =>
+          starredValue
+            ? Array.from(new Set([...labels, "STARRED"]))
+            : labels.filter((label) => label !== "STARRED");
+        setThreads((prev) =>
+          prev.map((thread) =>
+            targets.includes(thread.id)
+              ? {
+                  ...thread,
+                  isStarred: starredValue,
+                  labelIds: updateLabels(thread.labelIds || []),
+                }
+              : thread
+          )
+        );
+        setSelectedThread((prev) =>
+          prev && targets.includes(prev.id)
+            ? {
+                ...prev,
+                isStarred: starredValue,
+                labelIds: updateLabels(prev.labelIds || []),
+              }
+            : prev
+        );
+      } else {
+        setThreads((prev) =>
+          prev.filter((thread) => !targets.includes(thread.id))
+        );
+        setSelectedIds((prev) => prev.filter((id) => !targets.includes(id)));
+        if (targets.includes(selectedThread?.id)) {
+          setSelectedThread(null);
+        }
       }
     } catch (err) {
       setThreadsError(err.message || "Unable to update messages.");
     }
+  };
+
+  const handleToggleStar = (thread, nextState) => {
+    handleBulkAction(nextState ? "star" : "unstar", [thread.id]);
   };
 
   const handleComposeField = (field, value) => {
@@ -408,16 +451,49 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
             onClick={() => setSelectedThread(thread)}
             title="Open thread"
           >
-            <div className="thread-preview">
-              <p className="thread-sender">
-                {thread.from || thread.to || "Unknown sender"}
-              </p>
-              <p className="thread-subject">{thread.subject}</p>
-              <p className="thread-snippet">
-                {thread.decodedSnippet || thread.snippet}
-              </p>
+            <div className="thread-left">
+              <label
+                className="thread-checkbox"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(thread.id)}
+                  onChange={(event) =>
+                    handleThreadSelect(thread.id, event.target.checked)
+                  }
+                  aria-label="Select conversation"
+                />
+                <span className="checkbox-ring" />
+              </label>
+              <div className="thread-preview">
+                <p className="thread-sender">
+                  {thread.from || thread.to || "Unknown sender"}
+                </p>
+                <p className="thread-subject">{thread.subject}</p>
+                <p className="thread-snippet">
+                  {thread.decodedSnippet || thread.snippet}
+                </p>
+              </div>
             </div>
-            <span className="thread-time">{formatTimestamp(thread.date)}</span>
+              <div className="thread-meta">
+                <button
+                  type="button"
+                  className={`thread-star ${thread.isStarred ? "active" : ""}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleToggleStar(thread, !thread.isStarred);
+                  }}
+                  title={thread.isStarred ? "Unstar" : "Star"}
+                >
+                <span className="material-symbols-rounded">
+                  {thread.isStarred ? "star" : "star_border"}
+                </span>
+              </button>
+              <span className="thread-time">
+                {formatTimestamp(thread.date)}
+              </span>
+            </div>
           </li>
         ))}
     </ul>

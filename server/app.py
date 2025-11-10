@@ -178,6 +178,7 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
             headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
             payload = msg.get('payload')
             attachments = extract_attachments(payload, msg['id'])
+            label_ids = msg.get('labelIds', []) or []
             body_content = extract_body_content(payload)
             messages.append({
                 'id': msg['id'],
@@ -187,11 +188,12 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
                 'to': headers.get('To', ''),
                 'cc': headers.get('Cc', ''),
                 'date': headers.get('Date', ''),
-                'labelIds': msg.get('labelIds', []),
+                'labelIds': label_ids,
                 'attachments': attachments,
                 'hasAttachments': bool(attachments),
                 'bodyHtml': body_content.get('html', ''),
                 'bodyPlain': body_content.get('text', ''),
+                'isStarred': 'STARRED' in label_ids,
             })
         return messages, response.get('nextPageToken'), response.get('resultSizeEstimate')
     except HttpError as err:
@@ -313,7 +315,7 @@ def modify_messages(email):
 
     if not message_ids:
         return jsonify({'error': 'messageIds are required.'}), 400
-    if action not in {'archive', 'delete'}:
+    if action not in {'archive', 'delete', 'star', 'unstar'}:
         return jsonify({'error': 'Unsupported action.'}), 400
 
     try:
@@ -326,6 +328,10 @@ def modify_messages(email):
         elif action == 'delete':
             remove_labels = ['INBOX']
             add_labels = ['TRASH']
+        elif action == 'star':
+            add_labels = ['STARRED']
+        elif action == 'unstar':
+            remove_labels = ['STARRED']
 
         if remove_labels:
             modify_body['removeLabelIds'] = remove_labels
