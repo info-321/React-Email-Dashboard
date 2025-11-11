@@ -4,7 +4,7 @@ import "./EmailApp.css";
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const PAGE_SIZE = 25;
-const EMOJI_PRESET = ["😀", "😁", "😊", "😍", "🤩", "🤗", "👍", "🙏", "🚀", "✨", "❤️"];
+const EMOJI_PRESET = ["??", "??", "??", "??", "??", "??", "??", "??", "??", "?", "??"];
 
 const folderDefinitions = [
   { key: "inbox", name: "Inbox", icon: "inbox" },
@@ -15,6 +15,16 @@ const folderDefinitions = [
   { key: "spam", name: "Spam", icon: "report" },
   { key: "deleted", name: "Deleted", icon: "delete" },
 ];
+
+const folderQueryMap = {
+  inbox: "in:inbox",
+  sent: "in:sent",
+  drafts: "in:drafts",
+  starred: "is:starred",
+  archive: "in:archive",
+  spam: "in:spam",
+  deleted: "in:trash",
+};
 
 const formatTimestamp = (value) => {
   if (!value) return "";
@@ -70,6 +80,16 @@ const buildAttachmentUrl = (mailbox, messageId, attachment) => {
   return `${base}?${params.toString()}`;
 };
 
+const filterDefaults = {
+  from: "",
+  to: "",
+  subject: "",
+  dateStart: "",
+  dateEnd: "",
+  folder: "",
+  hasAttachment: false,
+};
+
 const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -84,6 +104,8 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
   const [selectedThread, setSelectedThread] = useState(null);
 
   const [searchInput, setSearchInput] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterForm, setFilterForm] = useState(filterDefaults);
   const [activeQuery, setActiveQuery] = useState("");
   const [pageToken, setPageToken] = useState(null);
   const [prevPageTokens, setPrevPageTokens] = useState([]);
@@ -280,10 +302,53 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
     setActiveFolder(folderKey);
   };
 
+  const buildSearchQuery = (text = searchInput) => {
+    const tokens = [];
+    const trimmedText = (text || "").trim();
+    if (trimmedText) tokens.push(trimmedText);
+    if (filterForm.from) tokens.push(`from:${filterForm.from}`);
+    if (filterForm.to) tokens.push(`to:${filterForm.to}`);
+    if (filterForm.subject) tokens.push(`subject:${filterForm.subject}`);
+    if (filterForm.dateStart) {
+      tokens.push(`after:${Math.floor(new Date(filterForm.dateStart).getTime() / 1000)}`);
+    }
+    if (filterForm.dateEnd) {
+      const endSeconds =
+        Math.floor(new Date(filterForm.dateEnd).setHours(23, 59, 59, 999) / 1000);
+      tokens.push(`before:${endSeconds}`);
+    }
+    if (filterForm.hasAttachment) tokens.push("has:attachment");
+    if (filterForm.folder && folderQueryMap[filterForm.folder]) {
+      tokens.push(folderQueryMap[filterForm.folder]);
+    }
+    return tokens.join(" ").trim();
+  };
+
+  const toggleFilter = () => setFilterOpen((prev) => !prev);
+
+  const handleFilterField = (field, value) => {
+    setFilterForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleApplyFilters = () => {
+    const query = buildSearchQuery(searchInput);
+    setActiveQuery(query);
+    setFilterOpen(false);
+    resetPagination();
+  };
+
+  const handleClearFilters = () => {
+    setFilterForm(filterDefaults);
+    setSearchInput("");
+    setActiveQuery("");
+    setFilterOpen(false);
+    resetPagination();
+  };
+
   const handleSearchSubmit = (event) => {
     event.preventDefault();
-    const trimmed = searchInput.trim();
-    setActiveQuery(trimmed);
+    const combined = buildSearchQuery(searchInput);
+    setActiveQuery(combined);
     resetPagination();
   };
 
@@ -627,34 +692,144 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
           </div>
         </div>
         <div className="top-actions">
-          <form className="search-pill" onSubmit={handleSearchSubmit}>
-            <span className="material-symbols-rounded">search</span>
-            <input
-              type="text"
-              placeholder="Search mail"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-            />
-            <button
-              type="submit"
-              className="pill-btn compact"
-              disabled={threadsLoading && activeQuery === searchInput.trim()}
-              title="Search"
-            >
-              Go
-            </button>
-            {activeQuery && (
+          <div className="search-wrapper">
+            <form className="search-pill" onSubmit={handleSearchSubmit}>
+              <span className="material-symbols-rounded">search</span>
+              <input
+                type="text"
+                placeholder="Search mail"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+              <button
+                type="submit"
+                className="pill-btn compact"
+                disabled={threadsLoading && activeQuery === searchInput.trim()}
+                title="Search"
+              >
+                Go
+              </button>
+              {activeQuery && (
+                <button
+                  type="button"
+                  className="icon-only"
+                  onClick={clearSearch}
+                  aria-label="Clear search"
+                  title="Clear filter"
+                >
+                  <span className="material-symbols-rounded">close</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-only"
-                onClick={clearSearch}
-                aria-label="Clear search"
-                title="Clear filter"
+                onClick={toggleFilter}
+                aria-label="Filter options"
+                title="Filter options"
               >
-                <span className="material-symbols-rounded">close</span>
+                <span className="material-symbols-rounded">tune</span>
               </button>
+            </form>
+            {filterOpen && (
+              <div className="search-filter-panel">
+                <div className="filter-grid">
+                  <label className="filter-field">
+                    <span>From</span>
+                    <input
+                      type="text"
+                      value={filterForm.from}
+                      onChange={(event) =>
+                        handleFilterField("from", event.target.value)
+                      }
+                    />
+                  </label>
+                  <label className="filter-field">
+                    <span>To</span>
+                    <input
+                      type="text"
+                      value={filterForm.to}
+                      onChange={(event) =>
+                        handleFilterField("to", event.target.value)
+                      }
+                    />
+                  </label>
+                  <label className="filter-field">
+                    <span>Subject</span>
+                    <input
+                      type="text"
+                      value={filterForm.subject}
+                      onChange={(event) =>
+                        handleFilterField("subject", event.target.value)
+                      }
+                    />
+                  </label>
+                  <div className="filter-row dates">
+                    <label className="filter-field">
+                      <span>Date Start</span>
+                      <input
+                        type="date"
+                        value={filterForm.dateStart}
+                        onChange={(event) =>
+                          handleFilterField("dateStart", event.target.value)
+                        }
+                      />
+                    </label>
+                    <label className="filter-field">
+                      <span>Date End</span>
+                      <input
+                        type="date"
+                        value={filterForm.dateEnd}
+                        onChange={(event) =>
+                          handleFilterField("dateEnd", event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                  <label className="filter-field">
+                    <span>Search</span>
+                    <div className="select-wrapper">
+                      <select
+                        value={filterForm.folder}
+                        onChange={(event) =>
+                          handleFilterField("folder", event.target.value)
+                        }
+                      >
+                        <option value="">All tabs</option>
+                        {folderDefinitions.map((folder) => (
+                          <option key={folder.key} value={folder.key}>
+                            {folder.name}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="material-symbols-rounded">expand_more</span>
+                    </div>
+                  </label>
+                  <label className="has-attachment">
+                    <input
+                      type="checkbox"
+                      checked={filterForm.hasAttachment}
+                      onChange={(event) =>
+                        handleFilterField("hasAttachment", event.target.checked)
+                      }
+                    />
+                    Has attachment
+                  </label>
+                </div>
+                <div className="filter-actions">
+                  <button type="button" onClick={handleClearFilters}>
+                    Clear Filter
+                  </button>
+                  <button
+                    type="button"
+                    className="pill-btn compact"
+                    onClick={handleApplyFilters}
+                  >
+                    Search
+                  </button>
+                </div>
+              </div>
             )}
-          </form>
+          </div>
           <div className="topbar-controls">
             <div className="control-group">
               {[
