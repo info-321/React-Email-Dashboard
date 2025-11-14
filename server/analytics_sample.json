@@ -1,0 +1,62 @@
+[
+  {
+    "date": "2025-11-11",
+    "campaign": "All Featured Press Releases",
+    "sent": 5200,
+    "delivered": 5085,
+    "opened": 3825,
+    "clicked": 812,
+    "bounced": 25,
+    "unsubscribed": 64,
+    "spam": 5,
+    "device": ["Desktop/Laptop", "Smartphone"]
+  },
+  {
+    "date": "2025-11-09",
+    "campaign": "TTW Weekly Digest",
+    "sent": 4800,
+    "delivered": 4711,
+    "opened": 3205,
+    "clicked": 640,
+    "bounced": 40,
+    "unsubscribed": 102,
+    "spam": 11,
+    "device": ["Desktop/Laptop", "Tablet", "Smartphone"]
+  },
+  {
+    "date": "2025-11-06",
+    "campaign": "Travel Trade Webinar Invite",
+    "sent": 4100,
+    "delivered": 4054,
+    "opened": 2890,
+    "clicked": 512,
+    "bounced": 18,
+    "unsubscribed": 55,
+    "spam": 3,
+    "device": ["Desktop/Laptop", "Smartwatch"]
+  },
+  {
+    "date": "2025-11-02",
+    "campaign": "Airline Partners Spotlight",
+    "sent": 3650,
+    "delivered": 3602,
+    "opened": 2411,
+    "clicked": 435,
+    "bounced": 33,
+    "unsubscribed": 49,
+    "spam": 6,
+    "device": ["Desktop/Laptop", "Smartphone", "Tablet"]
+  },
+  {
+    "date": "2025-10-29",
+    "campaign": "TTW Premium Offers",
+    "sent": 5900,
+    "delivered": 5751,
+    "opened": 4010,
+    "clicked": 998,
+    "bounced": 41,
+    "unsubscribed": 88,
+    "spam": 9,
+    "device": ["Desktop/Laptop", "Smartphone"]
+  }
+]

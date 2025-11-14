@@ -519,6 +519,35 @@
     border-radius: 999px;
 }
 
+.marketing-section {
+    margin-top: 1.4rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.email-shell.light .marketing-section {
+    border-top-color: rgba(22, 31, 60, 0.08);
+}
+
+.marketing-section .section-title {
+    margin-bottom: 0.4rem;
+}
+
+.label-item.highlight {
+    background: rgba(120, 138, 201, 0.18);
+    border: 1px solid rgba(120, 138, 201, 0.4);
+    opacity: 1;
+}
+
+.label-item.highlight:hover {
+    background: rgba(120, 138, 201, 0.28);
+}
+
+.email-shell.light .label-item.highlight {
+    background: rgba(82, 120, 255, 0.12);
+    border-color: rgba(82, 120, 255, 0.3);
+}
+
 .email-shell.light .label-scroll::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, rgba(28, 40, 68, 0.4), rgba(28, 40, 68, 0.15));
 }

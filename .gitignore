@@ -4,3 +4,4 @@ server/workspace_service_account.json
 *.env
 *.key
 *.pem
+__pycache__/

@@ -1,0 +1,427 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded&display=swap");
+
+.analytics-shell {
+    min-height: 100vh;
+    padding: 2rem;
+    background: radial-gradient(circle at top, #141633, #040516 70%);
+    font-family: "Inter", system-ui, sans-serif;
+    color: #eef1ff;
+}
+
+.analytics-shell.light {
+    background: linear-gradient(135deg, #e6ebff, #f9e9ff);
+    color: #152044;
+}
+
+.analytics-shell .material-symbols-rounded {
+    font-family: "Material Symbols Rounded";
+    font-weight: normal;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+}
+
+.analytics-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: rgba(16, 20, 45, 0.4);
+    border-radius: 32px;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+    box-shadow: 0 40px 120px rgba(3, 3, 12, 0.45);
+    backdrop-filter: blur(22px);
+}
+
+.analytics-shell.light .analytics-content {
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 40px 80px rgba(15, 23, 42, 0.12);
+}
+
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.header-meta h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+.header-meta p {
+    margin: 0.2rem 0 0;
+    opacity: 0.75;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.header-actions button,
+.header-actions input {
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    padding: 0.45rem 1rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.header-actions button {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+}
+
+.header-actions button.primary {
+    background: linear-gradient(135deg, #7a5af8, #5546ff);
+    border-color: transparent;
+    color: #fff;
+}
+
+.analytics-shell.light .header-actions {
+    background: rgba(15, 23, 42, 0.05);
+    border-color: rgba(15, 23, 42, 0.08);
+}
+
+.date-range {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.date-range label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.date-range input {
+    padding: 0.35rem 0.75rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+}
+
+.analytics-shell.light .date-range input {
+    background: rgba(15, 23, 42, 0.06);
+    border-color: rgba(15, 23, 42, 0.15);
+}
+
+.analytics-cards {
+    display: grid;
+    gap: 1rem;
+}
+
+.analytics-cards.top-row {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.analytics-cards.bottom-row {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 1.2rem;
+    box-shadow: 0 30px 60px rgba(15, 15, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.stat-card h3 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+.stat-card small {
+    color: rgba(17, 22, 51, 0.6);
+}
+
+.stat-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+}
+
+.delta {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+}
+
+.delta.up {
+    background: rgba(18, 183, 106, 0.15);
+    color: #0f9d58;
+}
+
+.delta.down {
+    background: rgba(244, 67, 54, 0.15);
+    color: #d93025;
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 1.5rem;
+}
+
+.panel {
+    background: #fff;
+    border-radius: 24px;
+    padding: 1.5rem;
+    box-shadow: 0 30px 60px rgba(15, 23, 42, 0.06);
+}
+
+.panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.line-chart {
+    width: 100%;
+}
+
+.line-chart svg {
+    width: 100%;
+}
+
+.line-chart .axis {
+    stroke: rgba(15, 23, 42, 0.15);
+    stroke-width: 1;
+}
+
+.chart-axis-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    color: rgba(15, 23, 42, 0.6);
+}
+
+.chart-legend {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: rgba(15, 23, 42, 0.8);
+}
+
+.chart-legend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-right: 0.35rem;
+}
+
+.chart-legend.compact {
+    justify-content: flex-end;
+}
+
+.chart-empty {
+    min-height: 160px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed rgba(15, 23, 42, 0.15);
+    border-radius: 16px;
+    color: rgba(15, 23, 42, 0.6);
+}
+
+.device-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.device-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.device-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+}
+
+.device-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.device-bars .bar {
+    height: 10px;
+    border-radius: 999px;
+    display: block;
+}
+
+.device-bars .bar.opened {
+    background: rgba(122, 90, 248, 0.35);
+}
+
+.device-bars .bar.clicked {
+    background: rgba(76, 195, 138, 0.5);
+}
+
+.table-panel {
+    background: #fff;
+    border-radius: 24px;
+    padding: 1.5rem;
+    box-shadow: 0 30px 60px rgba(15, 23, 42, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.table-panel header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.table-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.table-actions .search {
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.table-actions input {
+    border: none;
+    outline: none;
+    font: inherit;
+}
+
+.table-actions button {
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    background: transparent;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.table-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.table-panel th,
+.table-panel td {
+    padding: 0.75rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.table-panel th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(15, 23, 42, 0.5);
+}
+
+.table-loading,
+.table-empty {
+    text-align: center;
+    color: rgba(15, 23, 42, 0.6);
+}
+
+.table-panel footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.table-panel footer button {
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    padding: 0.35rem 0.9rem;
+    background: transparent;
+    cursor: pointer;
+}
+
+.table-panel footer button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.analytics-error {
+    border-radius: 18px;
+    padding: 0.8rem 1rem;
+    background: rgba(217, 48, 37, 0.09);
+    color: #d93025;
+    border: 1px solid rgba(217, 48, 37, 0.2);
+}
+
+.analytics-warning {
+    border-radius: 18px;
+    padding: 0.8rem 1rem;
+    background: rgba(122, 90, 248, 0.08);
+    color: #432c9e;
+    border: 1px solid rgba(122, 90, 248, 0.25);
+}
+
+.analytics-warning.info {
+    background: rgba(76, 195, 138, 0.08);
+    color: #185b45;
+    border-color: rgba(76, 195, 138, 0.25);
+}
+
+.analytics-loader {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #050b1d;
+    color: #fff;
+    padding: 0.85rem 1.4rem;
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(5, 11, 29, 0.25);
+}
+
+@media (max-width: 1200px) {
+    .analytics-content {
+        padding: 1.5rem;
+    }
+
+    .chart-grid {
+        grid-template-columns: 1fr;
+    }
+}

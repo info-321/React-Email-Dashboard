@@ -90,7 +90,7 @@ const filterDefaults = {
   hasAttachment: false,
 };
 
-const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
+const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme, onOpenAnalytics }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const [overview, setOverview] = useState({ labels: [], counts: {} });
@@ -985,6 +985,20 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme }) => {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="label-menu marketing-section">
+            <p className="section-title">Email Marketing</p>
+            <button
+              type="button"
+              className={`label-item highlight ${onOpenAnalytics ? "" : "disabled"}`}
+              onClick={() => onOpenAnalytics?.()}
+              title="Open analytics"
+              disabled={!onOpenAnalytics}
+            >
+              <span className="material-symbols-rounded">query_stats</span>
+              <span className="label-text">Analytics</span>
+            </button>
           </div>
         </aside>
 
