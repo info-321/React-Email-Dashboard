@@ -5,3 +5,5 @@ server/workspace_service_account.json
 *.key
 *.pem
 __pycache__/
+server/emails.json
+server/config.py
