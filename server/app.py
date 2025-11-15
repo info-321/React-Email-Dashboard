@@ -54,6 +54,7 @@ ANALYTICS_RANGE_PRESETS = {
 MAX_ANALYTICS_PAGES = 200
 ANALYTICS_CACHE_TTL = int(os.getenv('ANALYTICS_CACHE_TTL', '300'))
 analytics_cache = {}
+GMAIL_ANALYTICS_FETCH_LIMIT = int(os.getenv('GMAIL_ANALYTICS_FETCH_LIMIT', '1000'))
 
 SAMPLE_ANALYTICS_DATA = [
     {
@@ -662,6 +663,20 @@ def _extract_multi(prop):
     return []
 
 
+def _extract_recipients(value: str):
+    if not value:
+        return ['Unknown recipient']
+    recipients = []
+    for chunk in value.split(','):
+        email = chunk.strip().strip('"').strip("'")
+        if '<' in email and '>' in email:
+            email = email[email.find('<') + 1: email.find('>')]
+        email = email.strip().strip('"').strip("'")
+        if email:
+            recipients.append(email.lower())
+    return recipients or ['Unknown recipient']
+
+
 def _percent(a, b):
     if not b:
         return 0.0
@@ -805,7 +820,7 @@ def _build_analytics_payload(range_key, start_date, records):
             'points': [{'date': point['date'], 'value': point['openRate']} for point in timeline],
         },
         {
-            'label': 'Click rate',
+            'label': 'Click-through rate',
             'color': '#4cc38a',
             'points': [{'date': point['date'], 'value': point['clickRate']} for point in timeline],
         },
@@ -940,21 +955,35 @@ def _timestamp_from_iso(date_str: str) -> int:
     return int(dt.timestamp())
 
 
-def _gather_gmail_messages(service, mailbox, label_ids, start_ts, end_ts=None, max_results=100):
+def _gather_gmail_messages(service, mailbox, label_ids, start_ts, end_ts=None, fetch_limit=None):
     query_parts = []
     if start_ts:
         query_parts.append(f"after:{start_ts}")
     if end_ts:
         query_parts.append(f"before:{end_ts}")
     query = " ".join(query_parts).strip()
-    messages, _, _ = fetch_messages(
-        service,
-        mailbox,
-        label_ids=label_ids,
-        query=query,
-        max_results=max_results
-    )
-    return messages
+    all_messages = []
+    next_token = None
+    limit = fetch_limit or GMAIL_ANALYTICS_FETCH_LIMIT
+    fetched = 0
+
+    while True:
+        if limit and fetched >= limit:
+            break
+        batch_size = min(200, (limit - fetched) if limit else 200)
+        batch, next_token, _ = fetch_messages(
+            service,
+            mailbox,
+            label_ids=label_ids,
+            query=query,
+            max_results=batch_size,
+            page_token=next_token
+        )
+        all_messages.extend(batch)
+        fetched += len(batch)
+        if not next_token or not batch:
+            break
+    return all_messages
 
 
 def _message_iso_date(value: str) -> str:
@@ -993,32 +1022,51 @@ def _build_mailbox_analytics(mailbox: str, range_key: str, start_date: str, end_
     for msg in inbox_messages:
         date_iso = _message_iso_date(msg.get('date'))
         day = (date_iso or '')[:10]
-        entry = timeline_map.setdefault(day, {'date': day, 'sent': 0, 'openRate': 0, 'clickRate': 0})
-        entry['openRate'] += 1
+        entry = timeline_map.setdefault(
+            day,
+            {'date': day, 'sent': 0, 'delivered': 0, 'opens': 0}
+        )
+        entry['delivered'] += 1
+        if 'UNREAD' not in (msg.get('labelIds') or []):
+            entry['opens'] += 1
     for msg in sent_messages:
         date_iso = _message_iso_date(msg.get('date'))
         day = (date_iso or '')[:10]
-        entry = timeline_map.setdefault(day, {'date': day, 'sent': 0, 'openRate': 0, 'clickRate': 0})
-        entry['clickRate'] += 1
+        entry = timeline_map.setdefault(
+            day,
+            {'date': day, 'sent': 0, 'delivered': 0, 'opens': 0}
+        )
         entry['sent'] += 1
     timeline = sorted(timeline_map.values(), key=lambda item: item['date'])
+    open_count = sum(row.get('opens', 0) for row in timeline)
 
     line_series = [
         {
-            'label': 'Inbox volume',
+            'label': 'Open rate',
             'color': '#7a5af8',
-            'points': [{'date': row['date'], 'value': row['openRate']} for row in timeline],
+            'points': [
+                {
+                    'date': row['date'],
+                    'value': _percent(row.get('opens', 0), row.get('delivered', 0) or 1),
+                }
+                for row in timeline
+            ],
         },
         {
-            'label': 'Sent volume',
+            'label': 'Click-through rate',
             'color': '#4cc38a',
-            'points': [{'date': row['date'], 'value': row['clickRate']} for row in timeline],
+            'points': [
+                {
+                    'date': row['date'],
+                    'value': _percent(row.get('delivered', 0), row.get('sent', 0) or row.get('delivered', 0) or 1),
+                }
+                for row in timeline
+            ],
         },
     ]
 
     sent_count = len(sent_messages)
     delivered_count = len(inbox_messages)
-    open_count = delivered_count
     spam_count = len(spam_messages)
     bounce_count = len(trash_messages)
     total_sent = sent_count
@@ -1037,11 +1085,11 @@ def _build_mailbox_analytics(mailbox: str, range_key: str, start_date: str, end_
         },
         {
             'label': 'Open rate',
-            'value': _percent(total_inbox, total_sent or total_inbox or 1),
+            'value': _percent(open_count, delivered_count or 1),
             'unit': '%',
             'delta': None,
             'trend': 'flat',
-            'helper': f"{total_inbox} inbox threads",
+            'helper': f"{open_count} opened messages",
         },
         {
             'label': 'Click rate',
@@ -1100,17 +1148,27 @@ def _build_mailbox_analytics(mailbox: str, range_key: str, start_date: str, end_
         for name, values in device_totals.items()
     ]
 
-    table_rows = []
-    for msg in inbox_messages[:25]:
-        table_rows.append({
-            'email': msg.get('subject') or '(No subject)',
-            'publishDate': _message_iso_date(msg.get('date')),
-            'sent': 1,
-            'clickRate': 0.0,
-            'deliveredRate': 100.0,
-            'unsubscribeRate': 0.0,
-            'spamRate': 0.0,
-        })
+    recipient_counts = {}
+    for msg in sent_messages:
+        for recipient in _extract_recipients(msg.get('to', '')):
+            entry = recipient_counts.setdefault(recipient, {'sent': 0, 'received': 0})
+            entry['sent'] += 1
+    for msg in inbox_messages:
+        for sender in _extract_recipients(msg.get('from', '')):
+            entry = recipient_counts.setdefault(sender, {'sent': 0, 'received': 0})
+            entry['received'] += 1
+    table_rows = [
+        {
+            'email': recipient,
+            'sent': data['sent'],
+            'received': data['received'],
+        }
+        for recipient, data in sorted(
+            recipient_counts.items(),
+            key=lambda item: (item[1]['sent'] + item[1]['received']),
+            reverse=True
+        )
+    ][:100]
 
     undelivered = max(0, total_sent - total_inbox)
     metrics = {

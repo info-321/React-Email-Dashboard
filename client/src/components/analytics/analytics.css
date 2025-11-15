@@ -201,6 +201,7 @@
 
 .line-chart {
     width: 100%;
+    position: relative;
 }
 
 .line-chart svg {
@@ -210,6 +211,16 @@
 .line-chart .axis {
     stroke: rgba(15, 23, 42, 0.15);
     stroke-width: 1;
+}
+
+.line-chart .grid-line {
+    stroke: rgba(15, 23, 42, 0.08);
+    stroke-width: 1;
+}
+
+.line-chart .axis-label {
+    fill: rgba(15, 23, 42, 0.6);
+    font-size: 0.7rem;
 }
 
 .chart-axis-labels {
@@ -269,7 +280,6 @@
 
 .device-bars {
     display: flex;
-    flex-direction: column;
     gap: 0.35rem;
 }
 
@@ -281,10 +291,6 @@
 
 .device-bars .bar.opened {
     background: rgba(122, 90, 248, 0.35);
-}
-
-.device-bars .bar.clicked {
-    background: rgba(76, 195, 138, 0.5);
 }
 
 .table-panel {

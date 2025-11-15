@@ -48,7 +48,7 @@ const LineChart = ({ series = [], height = 220 }) => {
     return <div className="chart-empty">No timeline data</div>;
   }
 
-  const chartWidth = width - padding * 2;
+  const chartWidth = width - padding * 3;
   const chartHeight = height - padding * 2;
   const step = totalPoints > 1 ? chartWidth / (totalPoints - 1) : 0;
   const maxValue = Math.max(
@@ -58,42 +58,64 @@ const LineChart = ({ series = [], height = 220 }) => {
   const axisLabels = series[0]?.points?.map((point) => point.date) || [];
 
   const paths = series.map((item) => {
-    const path = (item.points || []).map((point, index) => {
-      const x = padding + index * step;
+    const points = (item.points || []).map((point, index) => {
+      const x = padding * 2 + index * step;
       const percent = Math.min(point.value || 0, maxValue) / maxValue;
       const y = height - padding - percent * chartHeight;
-      return `${index === 0 ? "M" : "L"}${x},${y}`;
+      return { x, y, date: point.date, value: point.value || 0 };
     });
-    return { color: item.color, label: item.label, d: path.join(" ") };
+    const d = points
+      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
+      .join("");
+    return { color: item.color, label: item.label, d, points };
   });
+
+  const yTicks = maxValue ? [0, Math.round(maxValue / 2), maxValue] : [0];
 
   return (
     <div className="line-chart">
       <svg width={width} height={height} role="img" aria-label="Email data chart">
-        <line
-          x1={padding}
-          y1={height - padding}
-          x2={width - padding}
-          y2={height - padding}
-          className="axis"
-        />
-        <line
-          x1={padding}
-          y1={padding}
-          x2={padding}
-          y2={height - padding}
-          className="axis"
-        />
+        {yTicks.map((tick) => {
+          const y = height - padding - (tick / (maxValue || 1)) * chartHeight;
+          return (
+            <g key={tick}>
+              <line
+                x1={padding * 2 - 8}
+                y1={y}
+                x2={width - padding}
+                y2={y}
+                className="grid-line"
+              />
+              <text x={padding} y={y + 4} className="axis-label">
+                {formatNumber(tick)}
+              </text>
+            </g>
+          );
+        })}
         {paths.map((path) => (
-          <path
-            key={path.label}
-            d={path.d}
-            fill="none"
-            stroke={path.color}
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          <g key={path.label}>
+            <path
+              d={path.d}
+              fill="none"
+              stroke={path.color}
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {path.points.map((point) => (
+              <circle
+                key={`${path.label}-${point.date}`}
+                cx={point.x}
+                cy={point.y}
+                r={3}
+                fill={path.color}
+              >
+                <title>
+                  {path.label}: {formatNumber(point.value)} on {formatDate(point.date)}
+                </title>
+              </circle>
+            ))}
+          </g>
         ))}
       </svg>
       <div className="chart-axis-labels">
@@ -118,38 +140,20 @@ const DeviceChart = ({ devices = [] }) => {
     return <div className="chart-empty">No device breakdown yet</div>;
   }
 
-  const maxValue = Math.max(
-    ...devices.map((item) => Math.max(item.opened || 0, item.clicked || 0)),
-    1
-  );
+  const maxValue = Math.max(...devices.map((item) => item.opened || 0), 1);
 
   return (
     <div className="device-chart">
-      <div className="chart-legend compact">
-        <span>
-          <i className="opened" /> Opened
-        </span>
-        <span>
-          <i className="clicked" /> Clicked
-        </span>
-      </div>
       {devices.map((device) => (
         <div className="device-row" key={device.device}>
           <div className="device-label">
             <p>{device.device}</p>
-            <small>
-              {Math.round(device.opened) || 0} opened /{" "}
-              {Math.round(device.clicked) || 0} clicks
-            </small>
+            <small>{Math.round(device.opened) || 0} mails</small>
           </div>
           <div className="device-bars">
             <span
               className="bar opened"
               style={{ width: `${(device.opened / maxValue) * 100}%` }}
-            />
-            <span
-              className="bar clicked"
-              style={{ width: `${(device.clicked / maxValue) * 100}%` }}
             />
           </div>
         </div>
@@ -393,7 +397,6 @@ const Analytics = ({ mailbox, onBack }) => {
             <div className="panel-head">
               <div>
                 <p>Performance by device</p>
-                <small>Opened vs Clicks</small>
               </div>
             </div>
             <DeviceChart devices={data?.devices || []} />
@@ -411,7 +414,7 @@ const Analytics = ({ mailbox, onBack }) => {
                 <span className="material-symbols-rounded">search</span>
                 <input
                   type="text"
-                  placeholder="Search campaigns"
+                  placeholder="Search recipients"
                   value={tableQuery}
                   onChange={(event) => setTableQuery(event.target.value)}
                 />
@@ -428,40 +431,32 @@ const Analytics = ({ mailbox, onBack }) => {
             <table>
               <thead>
                 <tr>
-                  <th>Email / Campaign</th>
-                  <th>Publish date</th>
+                  <th>Email</th>
                   <th>Sent</th>
-                  <th>Click-through</th>
-                  <th>Delivered</th>
-                  <th>Unsubscribed</th>
-                  <th>Spam</th>
+                  <th>Received</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan="7" className="table-loading">
+                    <td colSpan="3" className="table-loading">
                       Loading analytics...
                     </td>
                   </tr>
                 )}
                 {!loading && filteredRows.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="table-empty">
-                      No campaigns match your search.
+                    <td colSpan="3" className="table-empty">
+                      No entries in this range.
                     </td>
                   </tr>
                 )}
                 {!loading &&
                   paginatedRows.map((row) => (
-                    <tr key={`${row.email}-${row.publishDate}`}>
+                    <tr key={`${row.email}-${row.sent}-${row.received}`}>
                       <td>{row.email}</td>
-                      <td>{formatDate(row.publishDate)}</td>
-                      <td>{formatNumber(row.sent)}</td>
-                      <td>{formatPercent(row.clickRate)}</td>
-                      <td>{formatPercent(row.deliveredRate)}</td>
-                      <td>{formatPercent(row.unsubscribeRate)}</td>
-                      <td>{formatPercent(row.spamRate)}</td>
+                      <td>{formatNumber(row.sent ?? 0)}</td>
+                      <td>{formatNumber(row.received ?? 0)}</td>
                     </tr>
                   ))}
               </tbody>
