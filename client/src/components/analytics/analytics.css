@@ -441,6 +441,55 @@
     gap: 0.35rem;
 }
 
+.export-controls {
+    position: relative;
+}
+
+.export-dropdown {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 140px;
+    padding: 0.5rem;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    background: #fff;
+    box-shadow: 0 15px 30px rgba(15, 23, 42, 0.15);
+    z-index: 5;
+}
+
+.export-dropdown button {
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    color: rgba(15, 23, 42, 0.8);
+}
+
+.export-dropdown button:hover {
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.analytics-shell:not(.light) .export-dropdown {
+    background: #121633;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 15px 30px rgba(5, 7, 21, 0.5);
+}
+
+.analytics-shell:not(.light) .export-dropdown button {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.analytics-shell:not(.light) .export-dropdown button:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .analytics-shell:not(.light) .table-actions .search {
     border-color: rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.02);

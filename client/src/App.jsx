@@ -7,6 +7,8 @@ import "./App.css";
 
 const AUTH_STORAGE_KEY = "ttw_admin_authenticated";
 const ACTIVE_MAILBOX_KEY = "ttw_active_mailbox";
+const VIEW_STATE_KEY = "ttw_view_state";
+const THEME_MODE_KEY = "ttw_theme_mode";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -15,13 +17,18 @@ function App() {
   const [activeMailbox, setActiveMailbox] = useState(() =>
     localStorage.getItem(ACTIVE_MAILBOX_KEY)
   );
-  const [isLightMode, setIsLightMode] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(
+    () => localStorage.getItem(THEME_MODE_KEY) === "light"
+  );
+  const [showAnalytics, setShowAnalytics] = useState(
+    () => localStorage.getItem(VIEW_STATE_KEY) === "analytics"
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(ACTIVE_MAILBOX_KEY);
+      localStorage.removeItem(VIEW_STATE_KEY);
       setActiveMailbox(null);
       setShowAnalytics(false);
     } else {
@@ -29,6 +36,17 @@ function App() {
       setActiveMailbox((prev) => prev || localStorage.getItem(ACTIVE_MAILBOX_KEY));
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_MODE_KEY, isLightMode ? "light" : "dark");
+  }, [isLightMode]);
+
+  useEffect(() => {
+    if (!activeMailbox && showAnalytics) {
+      setShowAnalytics(false);
+      localStorage.removeItem(VIEW_STATE_KEY);
+    }
+  }, [activeMailbox, showAnalytics]);
 
   const handleLoginSuccess = () => {
     localStorage.setItem(AUTH_STORAGE_KEY, "true");
@@ -39,6 +57,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem(ACTIVE_MAILBOX_KEY);
+    localStorage.removeItem(VIEW_STATE_KEY);
     setActiveMailbox(null);
     setIsAuthenticated(false);
     setShowAnalytics(false);
@@ -46,22 +65,41 @@ function App() {
 
   const handleEnterMailbox = (email) => {
     localStorage.setItem(ACTIVE_MAILBOX_KEY, email);
+     localStorage.setItem(VIEW_STATE_KEY, "mailbox");
     setActiveMailbox(email);
     setShowAnalytics(false);
   };
 
   const handleExitMailbox = () => {
     localStorage.removeItem(ACTIVE_MAILBOX_KEY);
+    localStorage.removeItem(VIEW_STATE_KEY);
     setActiveMailbox(null);
     setShowAnalytics(false);
   };
   const toggleTheme = () => setIsLightMode((prev) => !prev);
 
+  const openAnalytics = () => {
+    setShowAnalytics(true);
+    localStorage.setItem(VIEW_STATE_KEY, "analytics");
+  };
+
+  const closeAnalytics = () => {
+    setShowAnalytics(false);
+    localStorage.setItem(VIEW_STATE_KEY, "mailbox");
+  };
+
   let content = null;
   if (!isAuthenticated) {
     content = <Login onSuccess={handleLoginSuccess} />;
   } else if (activeMailbox && showAnalytics) {
-    content = <Analytics onBack={() => setShowAnalytics(false)} mailbox={activeMailbox} />;
+    content = (
+      <Analytics
+        onBack={closeAnalytics}
+        mailbox={activeMailbox}
+        isLightMode={isLightMode}
+        onToggleTheme={toggleTheme}
+      />
+    );
   } else if (activeMailbox) {
     content = (
       <EmailApp
@@ -69,7 +107,7 @@ function App() {
         onBack={handleExitMailbox}
         isLightMode={isLightMode}
         onToggleTheme={toggleTheme}
-        onOpenAnalytics={() => setShowAnalytics(true)}
+        onOpenAnalytics={openAnalytics}
       />
     );
   } else {

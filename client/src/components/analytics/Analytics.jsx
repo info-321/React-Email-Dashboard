@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./analytics.css";
 
 const API_BASE_URL =
@@ -270,7 +270,7 @@ const DeviceChart = ({ devices = [] }) => {
   );
 };
 
-const Analytics = ({ mailbox, onBack }) => {
+const Analytics = ({ mailbox, onBack, isLightMode = false, onToggleTheme }) => {
   const presets = defaultRange();
   const [startDate, setStartDate] = useState(presets.start);
   const [endDate, setEndDate] = useState(presets.end);
@@ -280,7 +280,6 @@ const Analytics = ({ mailbox, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
-  const [isLightMode, setIsLightMode] = useState(false);
   const [drawerState, setDrawerState] = useState({
     open: false,
     loading: false,
@@ -290,6 +289,8 @@ const Analytics = ({ mailbox, onBack }) => {
     error: "",
   });
   const [expandedMessages, setExpandedMessages] = useState(() => new Set());
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef(null);
 
   const dataSourceLabel =
     data?.source === "gmail"
@@ -391,6 +392,19 @@ const Analytics = ({ mailbox, onBack }) => {
     setDrawerState((prev) => ({ ...prev, open: false, messages: [], error: "" }));
   }, [tableQuery, filteredRows.length]);
 
+  useEffect(() => {
+    if (!exportMenuOpen) {
+      return undefined;
+    }
+    const handleClickOutside = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [exportMenuOpen]);
+
   const totalPages = Math.max(
     1,
     Math.ceil(filteredRows.length / TABLE_PAGE_SIZE)
@@ -401,7 +415,11 @@ const Analytics = ({ mailbox, onBack }) => {
   );
 
   const handleRefresh = () => setRefreshToken((prev) => prev + 1);
-  const toggleTheme = () => setIsLightMode((prev) => !prev);
+  const toggleTheme = () => {
+    if (typeof onToggleTheme === "function") {
+      onToggleTheme();
+    }
+  };
   const toggleMessageExpansion = (messageId) => {
     setExpandedMessages((prev) => {
       const next = new Set(prev);
@@ -412,6 +430,100 @@ const Analytics = ({ mailbox, onBack }) => {
       }
       return next;
     });
+  };
+
+  const triggerDownload = (data, filename, mimeType) => {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAsCsv = (rows) => {
+    const headers = ["Email", "Sent", "Received"];
+    const csvLines = [headers, ...rows.map((row) => [
+      row.email,
+      row.sent ?? 0,
+      row.received ?? 0,
+    ])].map((line) =>
+      line
+        .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const filename = `email-performance-${new Date().toISOString().replace(/[:.]/g, "-")}.csv`;
+    triggerDownload(csvLines.join("\n"), filename, "text/csv");
+  };
+
+  const buildPdfBlob = (rows) => {
+    const lines = [
+      "All Email Performance",
+      `Exported: ${new Date().toLocaleString()}`,
+      "",
+      "Email | Sent | Received",
+      ...rows.map(
+        (row) => `${row.email} | ${row.sent ?? 0} | ${row.received ?? 0}`
+      ),
+    ];
+    const sanitize = (value) =>
+      (value || "")
+        .replace(/\r?\n/g, " ")
+        .replace(/[()]/g, (match) => `\\${match}`);
+    const textOperators = lines
+      .map((line, index) =>
+        `${index === 0 ? "" : "0 -16 Td\n"}(${sanitize(line) || " "}) Tj`
+      )
+      .join("\n");
+    const contentStream = `BT\n/F1 12 Tf\n72 780 Td\n${textOperators}\nET`;
+    const header = "%PDF-1.4\n";
+    let body = "";
+    const objects = [];
+    const addObject = (content) => {
+      objects.push({ offset: header.length + body.length, content });
+      body += content;
+    };
+    addObject("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+    addObject("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+    addObject(
+      "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n"
+    );
+    addObject(
+      `4 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`
+    );
+    addObject(
+      "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n"
+    );
+
+    const xrefOffset = header.length + body.length;
+    let xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    xref += objects
+      .map((obj) => `${obj.offset.toString().padStart(10, "0")} 00000 n `)
+      .join("\n");
+    xref += "\n";
+    const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    return new Blob([header, body, xref, trailer], { type: "application/pdf" });
+  };
+
+  const exportAsPdf = (rows) => {
+    const blob = buildPdfBlob(rows);
+    const filename = `email-performance-${new Date().toISOString().replace(/[:.]/g, "-")}.pdf`;
+    triggerDownload(blob, filename, "application/pdf");
+  };
+
+  const handleExportSelection = (format) => {
+    if (!filteredRows.length) {
+      setExportMenuOpen(false);
+      window.alert("No rows available to export in the current view.");
+      return;
+    }
+    if (format === "csv") {
+      exportAsCsv(filteredRows);
+    } else {
+      exportAsPdf(filteredRows);
+    }
+    setExportMenuOpen(false);
   };
 
   const closeDrawer = () => {
@@ -586,24 +698,43 @@ const Analytics = ({ mailbox, onBack }) => {
               <h3>All email performance</h3>
               <p>Campaigns synced from {dataSourceLabel}</p>
             </div>
-            <div className="table-actions">
-              <div className="search">
-                <span className="material-symbols-rounded">search</span>
-                <input
-                  type="text"
-                  placeholder="Search recipients"
-                  value={tableQuery}
-                  onChange={(event) => setTableQuery(event.target.value)}
-                />
+              <div className="table-actions">
+                <div className="search">
+                  <span className="material-symbols-rounded">search</span>
+                  <input
+                    type="text"
+                    placeholder="Search recipients"
+                    value={tableQuery}
+                    onChange={(event) => setTableQuery(event.target.value)}
+                  />
+                </div>
+                <div className="export-controls" ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => setExportMenuOpen((prev) => !prev)}
+                  >
+                    Export
+                  </button>
+                  {exportMenuOpen && (
+                    <div className="export-dropdown">
+                      <button
+                        type="button"
+                        onClick={() => handleExportSelection("csv")}
+                      >
+                        .csv
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExportSelection("pdf")}
+                      >
+                        .pdf
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <button type="button" className="ghost">
-                Manage columns
-              </button>
-              <button type="button" className="ghost">
-                Export
-              </button>
-            </div>
-          </header>
+            </header>
           <div className="table-wrapper">
             <table>
               <thead>
