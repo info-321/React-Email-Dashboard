@@ -127,6 +127,17 @@ const LineChart = ({ series = [], height = 220 }) => {
     ...series.map((item) => item.points?.length || 0),
     0
   );
+
+  const formatAxisLabel = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   if (!totalPoints) {
     return <div className="chart-empty">No timeline data</div>;
   }
@@ -139,6 +150,15 @@ const LineChart = ({ series = [], height = 220 }) => {
     100
   );
   const axisLabels = series[0]?.points?.map((point) => point.date) || [];
+  const labelFrequency = Math.max(1, Math.floor(axisLabels.length / 6));
+  const axisSlots = axisLabels.map((value, index) => {
+    const showLabel =
+      axisLabels.length <= 6 ||
+      index === 0 ||
+      index === axisLabels.length - 1 ||
+      index % labelFrequency === 0;
+    return showLabel ? formatAxisLabel(value) : "";
+  });
 
   const paths = series.map((item) => {
     const points = (item.points || []).map((point, index) => {
@@ -202,8 +222,13 @@ const LineChart = ({ series = [], height = 220 }) => {
         ))}
       </svg>
       <div className="chart-axis-labels">
-        {axisLabels.map((label, index) => (
-          <span key={`${label}-${index}`}>{formatDate(label)}</span>
+        {axisSlots.map((label, index) => (
+          <span
+            key={`${axisLabels[index] || index}`}
+            className={label ? "" : "axis-placeholder"}
+          >
+            {label || "\u00A0"}
+          </span>
         ))}
       </div>
       <div className="chart-legend">
@@ -536,7 +561,7 @@ const Analytics = ({ mailbox, onBack }) => {
         </section>
 
         <section className="chart-grid">
-          <article className="panel">
+          <article className="panel chart-panel">
             <div className="panel-head">
               <div>
                 <p>Email data chart</p>
@@ -545,7 +570,7 @@ const Analytics = ({ mailbox, onBack }) => {
             </div>
             <LineChart series={data?.lineSeries || []} />
           </article>
-          <article className="panel">
+          <article className="panel chart-panel device-panel">
             <div className="panel-head">
               <div>
                 <p>Performance by device</p>
