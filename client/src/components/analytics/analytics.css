@@ -1,11 +1,31 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded&display=swap");
 
 .analytics-shell {
+    position: relative;
     min-height: 100vh;
     padding: 2rem;
-    background: radial-gradient(circle at top, #141633, #040516 70%);
+    background: radial-gradient(circle at top, #151a46 0%, #05071a 65%) fixed;
     font-family: "Inter", system-ui, sans-serif;
-    color: #eef1ff;
+    color: #f4f6ff;
+    overflow: hidden;
+}
+
+.analytics-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(108, 93, 211, 0.45), transparent 55%),
+        radial-gradient(circle at 80% 0%, rgba(33, 209, 255, 0.3), transparent 45%);
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+.analytics-shell > * {
+    position: relative;
+}
+
+.analytics-shell:not(.light) {
+    color: #fefefe;
 }
 
 .analytics-shell.light {
@@ -25,19 +45,49 @@
 .analytics-content {
     max-width: 1200px;
     margin: 0 auto;
-    background: rgba(16, 20, 45, 0.4);
     border-radius: 32px;
     padding: 2.5rem;
     display: flex;
     flex-direction: column;
     gap: 1.6rem;
-    box-shadow: 0 40px 120px rgba(3, 3, 12, 0.45);
-    backdrop-filter: blur(22px);
+    background: rgba(6, 10, 36, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 40px 120px rgba(3, 3, 12, 0.65);
+    backdrop-filter: blur(32px);
 }
 
 .analytics-shell.light .analytics-content {
     background: rgba(255, 255, 255, 0.92);
     box-shadow: 0 40px 80px rgba(15, 23, 42, 0.12);
+}
+
+.analytics-shell:not(.light) .header-meta h1,
+.analytics-shell:not(.light) .header-meta p {
+    color: #f6f4ff;
+}
+
+.analytics-shell:not(.light) .date-range label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.analytics-shell:not(.light) .date-range input {
+    color: #fff;
+}
+
+.analytics-shell:not(.light) .header-actions {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.analytics-shell:not(.light) .header-actions button,
+.analytics-shell:not(.light) .header-actions input {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: inherit;
+}
+
+.analytics-shell:not(.light) .header-actions button.primary {
+    box-shadow: 0 10px 25px rgba(118, 99, 255, 0.4);
 }
 
 .analytics-header {
@@ -147,6 +197,30 @@
     gap: 0.55rem;
 }
 
+.analytics-shell:not(.light) .stat-card,
+.analytics-shell:not(.light) .panel,
+.analytics-shell:not(.light) .table-panel,
+.analytics-shell:not(.light) .mail-drawer {
+    background: linear-gradient(140deg, rgba(27, 31, 78, 0.95), rgba(8, 11, 40, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 15px 45px rgba(6, 8, 22, 0.8);
+    color: #eef1ff;
+    backdrop-filter: blur(24px);
+}
+
+.analytics-shell:not(.light) .stat-card small,
+.analytics-shell:not(.light) .panel small,
+.analytics-shell:not(.light) .table-panel small {
+    color: rgba(255, 255, 255, 0.68);
+}
+
+.analytics-shell:not(.light) .stat-card h3,
+.analytics-shell:not(.light) .panel h3,
+.analytics-shell:not(.light) .table-panel h3,
+.analytics-shell:not(.light) .mail-drawer h4 {
+    color: #fff;
+}
+
 .stat-card h3 {
     margin: 0;
     font-size: 2rem;
@@ -199,6 +273,10 @@
     margin-bottom: 1rem;
 }
 
+.analytics-shell:not(.light) .panel-head p {
+    color: rgba(255, 255, 255, 0.7);
+}
+
 .line-chart {
     width: 100%;
     position: relative;
@@ -218,9 +296,21 @@
     stroke-width: 1;
 }
 
+.analytics-shell:not(.light) .line-chart .axis {
+    stroke: rgba(255, 255, 255, 0.15);
+}
+
+.analytics-shell:not(.light) .line-chart .grid-line {
+    stroke: rgba(255, 255, 255, 0.08);
+}
+
 .line-chart .axis-label {
     fill: rgba(15, 23, 42, 0.6);
     font-size: 0.7rem;
+}
+
+.analytics-shell:not(.light) .line-chart .axis-label {
+    fill: rgba(255, 255, 255, 0.65);
 }
 
 .chart-axis-labels {
@@ -231,12 +321,20 @@
     color: rgba(15, 23, 42, 0.6);
 }
 
+.analytics-shell:not(.light) .chart-axis-labels {
+    color: rgba(255, 255, 255, 0.65);
+}
+
 .chart-legend {
     margin-top: 0.75rem;
     display: flex;
     gap: 1rem;
     font-size: 0.85rem;
     color: rgba(15, 23, 42, 0.8);
+}
+
+.analytics-shell:not(.light) .chart-legend {
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .chart-legend i {
@@ -278,6 +376,23 @@
     font-size: 0.85rem;
 }
 
+.device-label p {
+    margin: 0;
+    font-weight: 600;
+}
+
+.device-label small {
+    opacity: 0.7;
+}
+
+.analytics-shell:not(.light) .device-label p {
+    color: #fff;
+}
+
+.analytics-shell:not(.light) .device-label small {
+    color: rgba(255, 255, 255, 0.75);
+}
+
 .device-bars {
     display: flex;
     gap: 0.35rem;
@@ -301,6 +416,8 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    position: relative;
+    overflow: hidden;
 }
 
 .table-panel header {
@@ -325,10 +442,17 @@
     gap: 0.35rem;
 }
 
+.analytics-shell:not(.light) .table-actions .search {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.02);
+}
+
 .table-actions input {
     border: none;
     outline: none;
     font: inherit;
+    background: transparent;
+    color: inherit;
 }
 
 .table-actions button {
@@ -337,6 +461,11 @@
     background: transparent;
     padding: 0.4rem 1rem;
     cursor: pointer;
+}
+
+.analytics-shell:not(.light) .table-actions button {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: inherit;
 }
 
 .table-wrapper {
@@ -349,11 +478,37 @@
     font-size: 0.9rem;
 }
 
+.analytics-shell:not(.light) .table-panel table {
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
 .table-panel th,
 .table-panel td {
     padding: 0.75rem 0.5rem;
     text-align: left;
     border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.analytics-shell:not(.light) .table-panel th,
+.analytics-shell:not(.light) .table-panel td {
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.link-cell {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.analytics-shell:not(.light) .link-cell {
+    color: #b2c7ff;
+}
+
+.link-cell:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .table-panel th {
@@ -363,10 +518,19 @@
     color: rgba(15, 23, 42, 0.5);
 }
 
+.analytics-shell:not(.light) .table-panel th {
+    color: rgba(255, 255, 255, 0.65);
+}
+
 .table-loading,
 .table-empty {
     text-align: center;
     color: rgba(15, 23, 42, 0.6);
+}
+
+.analytics-shell:not(.light) .table-loading,
+.analytics-shell:not(.light) .table-empty {
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .table-panel footer {
@@ -422,6 +586,11 @@
     box-shadow: 0 10px 30px rgba(5, 11, 29, 0.25);
 }
 
+.analytics-shell:not(.light) .analytics-loader {
+    background: rgba(6, 10, 36, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 @media (max-width: 1200px) {
     .analytics-content {
         padding: 1.5rem;
@@ -430,4 +599,185 @@
     .chart-grid {
         grid-template-columns: 1fr;
     }
+}
+.mail-drawer {
+    position: absolute;
+    top: 0;
+    right: -100%;
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    box-shadow: -12px 0 50px rgba(5, 11, 29, 0.25);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: right 0.3s ease;
+    z-index: 10;
+}
+
+.mail-drawer.open {
+    right: 0;
+}
+
+.mail-drawer .drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.drawer-header h4 {
+    margin: 0.2rem 0 0;
+}
+
+.drawer-header button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.drawer-status {
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.drawer-status.error {
+    color: #d93025;
+}
+
+.analytics-shell:not(.light) .drawer-status {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.drawer-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.drawer-list li {
+    padding: 0.8rem;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.analytics-shell:not(.light) .drawer-list li {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.drawer-list .msg-subject {
+    margin: 0;
+    font-weight: 600;
+}
+
+.analytics-shell:not(.light) .drawer-list small {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.drawer-list .msg-snippet {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: rgba(15, 23, 42, 0.7);
+}
+
+.drawer-list .msg-snippet.expanded {
+    color: rgba(15, 23, 42, 0.85);
+}
+
+.analytics-shell:not(.light) .drawer-list .msg-snippet {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.analytics-shell:not(.light) .drawer-list .msg-snippet.expanded {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.mail-drawer .msg-body {
+    margin-top: 0.6rem;
+    padding: 0.75rem 0.9rem;
+    border-left: 3px solid rgba(122, 90, 248, 0.4);
+    background: rgba(15, 23, 42, 0.03);
+    border-radius: 0 16px 16px 0;
+    max-height: 340px;
+    overflow-y: auto;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.analytics-shell:not(.light) .mail-drawer .msg-body {
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(108, 132, 255, 0.5);
+}
+
+.mail-drawer .msg-body p {
+    margin: 0.4rem 0;
+}
+
+.drawer-toggle {
+    border: none;
+    background: transparent;
+    color: #5b6cff;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 0.25rem;
+}
+
+.analytics-shell:not(.light) .drawer-toggle {
+    color: #9ab0ff;
+}
+
+.drawer-toggle:hover {
+    text-decoration: underline;
+}
+
+.drawer-attachments {
+    margin-top: 0.85rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.mail-drawer .attachment-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(15, 23, 42, 0.03);
+    text-decoration: none;
+    color: inherit;
+    min-width: 180px;
+}
+
+.mail-drawer .attachment-chip.disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.mail-drawer .attachment-chip p {
+    margin: 0;
+    font-weight: 500;
+}
+
+.mail-drawer .attachment-chip small {
+    display: block;
+    opacity: 0.7;
+}
+
+.mail-drawer .attachment-chip .material-symbols-rounded {
+    font-size: 18px;
+}
+
+.analytics-shell:not(.light) .mail-drawer .attachment-chip {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: #fff;
 }

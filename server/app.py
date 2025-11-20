@@ -955,12 +955,14 @@ def _timestamp_from_iso(date_str: str) -> int:
     return int(dt.timestamp())
 
 
-def _gather_gmail_messages(service, mailbox, label_ids, start_ts, end_ts=None, fetch_limit=None):
+def _gather_gmail_messages(service, mailbox, label_ids, start_ts, end_ts=None, fetch_limit=None, extra_query=""):
     query_parts = []
     if start_ts:
         query_parts.append(f"after:{start_ts}")
     if end_ts:
         query_parts.append(f"before:{end_ts}")
+    if extra_query:
+        query_parts.append(extra_query)
     query = " ".join(query_parts).strip()
     all_messages = []
     next_token = None
@@ -1241,6 +1243,61 @@ def analytics_overview():
         return jsonify({'error': f'Unable to build analytics dashboard: {exc}'}), 500
     _cache_set(cache_key, payload)
     return jsonify(payload)
+
+
+@app.get('/api/mailbox/<path:email>/peer-messages')
+def peer_messages(email):
+    peer = (request.args.get('peer') or '').strip().lower()
+    direction = (request.args.get('direction') or 'sent').lower()
+    start_override = request.args.get('startDate')
+    end_override = request.args.get('endDate')
+    if not peer:
+        return jsonify({'error': 'Peer email is required.'}), 400
+    try:
+        _, start_date, end_date = _determine_range('custom', start_override, end_override)
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
+
+    start_ts = _timestamp_from_iso(start_date)
+    end_ts = _timestamp_from_iso(end_date) + 86400 if end_date else None
+    extra = f"to:{peer}" if direction == 'sent' else f"from:{peer}"
+
+    try:
+        service = build_gmail_service(email)
+        label_ids = ['SENT'] if direction == 'sent' else ['INBOX']
+        messages = _gather_gmail_messages(
+            service,
+            email,
+            label_ids=label_ids,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            fetch_limit=GMAIL_ANALYTICS_FETCH_LIMIT,
+            extra_query=extra
+        )
+        payload = []
+        for msg in messages:
+            attachments = msg.get('attachments') or []
+            payload.append(
+                {
+                    'id': msg['id'],
+                    'subject': msg.get('subject'),
+                    'snippet': msg.get('snippet'),
+                    'date': msg.get('date'),
+                    'to': msg.get('to'),
+                    'from': msg.get('from'),
+                    'cc': msg.get('cc'),
+                    'bodyPlain': msg.get('bodyPlain'),
+                    'bodyHtml': msg.get('bodyHtml'),
+                    'attachments': attachments,
+                    'hasAttachments': msg.get('hasAttachments') or bool(attachments),
+                }
+            )
+        return jsonify({'messages': payload})
+    except HttpError as err:
+        return jsonify({'error': f'Gmail API error: {err}'}), err.status_code
+    except Exception as exc:
+        app.logger.exception("Unexpected error while loading peer messages for %s", email)
+        return jsonify({'error': f'Unexpected error: {exc}'}), 500
 
 
 def encode_message(to_addr, subject, body, cc=None, bcc=None, attachments=None):

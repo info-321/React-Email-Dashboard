@@ -21,11 +21,6 @@ const formatNumber = (value) =>
     Math.round(value ?? 0)
   );
 
-const formatPercent = (value) => {
-  const numeric = Number(value);
-  return `${Number.isFinite(numeric) ? numeric.toFixed(2) : "0.00"}%`;
-};
-
 const formatDate = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -36,6 +31,94 @@ const formatDate = (value) => {
     year: "numeric",
   });
 };
+
+const compactWhitespace = (value = "") =>
+  value.replace(/\s+/g, " ").trim();
+
+const stripHtml = (value = "") => {
+  if (!value) return "";
+  if (typeof window === "undefined") {
+    return value.replace(/<[^>]+>/g, " ");
+  }
+  const temp = window.document.createElement("div");
+  temp.innerHTML = value;
+  return temp.textContent || temp.innerText || "";
+};
+
+const escapeHtml = (value = "") =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const sanitizeHtml = (value = "") => {
+  if (!value) return "";
+  if (typeof window === "undefined") {
+    return value.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+  }
+  const parser = new window.DOMParser();
+  const jsPrefix = ["java", "script:"].join("");
+  const doc = parser.parseFromString(value, "text/html");
+  doc.querySelectorAll("script,style,link,meta").forEach((node) => node.remove());
+  doc.body.querySelectorAll("*").forEach((node) => {
+    Array.from(node.attributes).forEach((attr) => {
+      const attrName = attr.name.toLowerCase();
+      const attrValue = (attr.value || "").toLowerCase().trim();
+      if (attrName.startsWith("on") || attrValue.startsWith(jsPrefix)) {
+        node.removeAttribute(attr.name);
+      }
+    });
+  });
+  return doc.body.innerHTML;
+};
+
+const formatBytes = (bytes) => {
+  if (!Number.isFinite(Number(bytes)) || Number(bytes) <= 0) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = Number(bytes);
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
+const buildAttachmentUrl = (mailbox, messageId, attachment) => {
+  if (!mailbox || !messageId || !attachment?.attachmentId) return "#";
+  const baseUrl = `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
+    mailbox
+  )}/attachments/${encodeURIComponent(messageId)}/${encodeURIComponent(
+    attachment.attachmentId
+  )}`;
+  const params = new URLSearchParams();
+  if (attachment.filename) params.append("filename", attachment.filename);
+  if (attachment.mimeType) params.append("mimeType", attachment.mimeType);
+  const query = params.toString();
+  return query ? `${baseUrl}?${query}` : baseUrl;
+};
+
+const buildMessagePreview = (message) => {
+  const plain = compactWhitespace(message?.bodyPlain || "");
+  if (plain) return plain;
+  const htmlText = compactWhitespace(stripHtml(message?.bodyHtml || ""));
+  if (htmlText) return htmlText;
+  return compactWhitespace(message?.snippet || "");
+};
+
+const buildMessageHtml = (message) => {
+  if (message?.bodyHtml) {
+    const cleaned = sanitizeHtml(message.bodyHtml);
+    if (cleaned) return cleaned;
+  }
+  const fallback = message?.bodyPlain || message?.snippet || "";
+  if (!fallback) return "";
+  return escapeHtml(fallback).replace(/\n/g, "<br />");
+};
+
+const PREVIEW_CHAR_LIMIT = 280;
 
 const LineChart = ({ series = [], height = 220 }) => {
   const width = 520;
@@ -173,6 +256,15 @@ const Analytics = ({ mailbox, onBack }) => {
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [isLightMode, setIsLightMode] = useState(false);
+  const [drawerState, setDrawerState] = useState({
+    open: false,
+    loading: false,
+    peer: "",
+    direction: "sent",
+    messages: [],
+    error: "",
+  });
+  const [expandedMessages, setExpandedMessages] = useState(() => new Set());
 
   const dataSourceLabel =
     data?.source === "gmail"
@@ -271,6 +363,7 @@ const Analytics = ({ mailbox, onBack }) => {
 
   useEffect(() => {
     setPage(1);
+    setDrawerState((prev) => ({ ...prev, open: false, messages: [], error: "" }));
   }, [tableQuery, filteredRows.length]);
 
   const totalPages = Math.max(
@@ -284,6 +377,65 @@ const Analytics = ({ mailbox, onBack }) => {
 
   const handleRefresh = () => setRefreshToken((prev) => prev + 1);
   const toggleTheme = () => setIsLightMode((prev) => !prev);
+  const toggleMessageExpansion = (messageId) => {
+    setExpandedMessages((prev) => {
+      const next = new Set(prev);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  };
+
+  const closeDrawer = () => {
+    setExpandedMessages(new Set());
+    setDrawerState((prev) => ({ ...prev, open: false, messages: [], error: "" }));
+  };
+
+  const fetchPeerMessages = async (peer, direction) => {
+    if (!mailbox || !peer) {
+      return;
+    }
+    setDrawerState({
+      open: true,
+      loading: true,
+      peer,
+      direction,
+      messages: [],
+      error: "",
+    });
+    try {
+      const params = new URLSearchParams({
+        peer,
+        direction,
+        startDate,
+        endDate,
+      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
+          mailbox
+        )}/peer-messages?${params.toString()}`
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to load messages.");
+      }
+      setDrawerState((prev) => ({
+        ...prev,
+        loading: false,
+        messages: payload.messages || [],
+      }));
+      setExpandedMessages(new Set());
+    } catch (err) {
+      setDrawerState((prev) => ({
+        ...prev,
+        loading: false,
+        error: err.message || "Unexpected error.",
+      }));
+    }
+  };
 
   return (
     <div className={`analytics-shell ${isLightMode ? "light" : ""}`}>
@@ -455,8 +607,26 @@ const Analytics = ({ mailbox, onBack }) => {
                   paginatedRows.map((row) => (
                     <tr key={`${row.email}-${row.sent}-${row.received}`}>
                       <td>{row.email}</td>
-                      <td>{formatNumber(row.sent ?? 0)}</td>
-                      <td>{formatNumber(row.received ?? 0)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="link-cell"
+                          onClick={() => fetchPeerMessages(row.email, "sent")}
+                          disabled={!row.sent}
+                        >
+                          {formatNumber(row.sent ?? 0)}
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="link-cell"
+                          onClick={() => fetchPeerMessages(row.email, "received")}
+                          disabled={!row.received}
+                        >
+                          {formatNumber(row.received ?? 0)}
+                        </button>
+                      </td>
                     </tr>
                   ))}
               </tbody>
@@ -485,6 +655,124 @@ const Analytics = ({ mailbox, onBack }) => {
               Next
             </button>
           </footer>
+
+          <div className={`mail-drawer ${drawerState.open ? "open" : ""}`}>
+            <div className="drawer-header">
+              <div>
+                <p>
+                  {drawerState.direction === "sent"
+                    ? "Sent mails to"
+                    : "Received mails from"}
+                </p>
+                <h4>{drawerState.peer}</h4>
+              </div>
+              <button type="button" onClick={closeDrawer}>
+                <span className="material-symbols-rounded">close</span>
+              </button>
+            </div>
+            {drawerState.loading && (
+              <p className="drawer-status">Loading messages...</p>
+            )}
+            {drawerState.error && (
+              <p className="drawer-status error">{drawerState.error}</p>
+            )}
+            {!drawerState.loading &&
+              !drawerState.error &&
+              !drawerState.messages.length && (
+                <p className="drawer-status">No messages found in this range.</p>
+              )}
+            <ul className="drawer-list">
+              {drawerState.messages.map((message) => {
+                const previewText = buildMessagePreview(message);
+                const isExpanded = expandedMessages.has(message.id);
+                const showToggle = previewText.length > PREVIEW_CHAR_LIMIT;
+                const truncatedPreview = showToggle
+                  ? `${previewText.slice(0, PREVIEW_CHAR_LIMIT)}…`
+                  : previewText;
+                const messageHtml = isExpanded ? buildMessageHtml(message) : "";
+                const attachments = message.attachments || [];
+                return (
+                  <li key={message.id}>
+                    <p className="msg-subject">
+                      {message.subject || "(No subject)"}
+                    </p>
+                    <small>
+                      {formatDate(message.date)} {" • "}
+                      {drawerState.direction === "sent"
+                        ? `To ${message.to || drawerState.peer}`
+                        : `From ${message.from || drawerState.peer}`}
+                    </small>
+                    {previewText && (
+                      <p
+                        className={`msg-snippet ${
+                          isExpanded ? "expanded" : ""
+                        }`}
+                      >
+                        {isExpanded || !showToggle
+                          ? previewText
+                          : truncatedPreview}
+                      </p>
+                    )}
+                    {isExpanded && messageHtml && (
+                      <div
+                        className="msg-body"
+                        dangerouslySetInnerHTML={{ __html: messageHtml }}
+                      />
+                    )}
+                    {showToggle && (
+                      <button
+                        type="button"
+                        className="drawer-toggle"
+                        onClick={() => toggleMessageExpansion(message.id)}
+                      >
+                        {isExpanded ? "Show less" : "Read more"}
+                      </button>
+                    )}
+                    {attachments.length > 0 && (
+                      <div className="drawer-attachments">
+                        {attachments.map((attachment) => {
+                          const href = buildAttachmentUrl(
+                            mailbox,
+                            message.id,
+                            attachment
+                          );
+                          const attachmentKey =
+                            attachment.attachmentId ||
+                            attachment.filename ||
+                            attachment.mimeType;
+                          return (
+                            <a
+                              key={`${message.id}-${attachmentKey}`}
+                              href={href}
+                              target={href === "#" ? "_self" : "_blank"}
+                              rel="noopener noreferrer"
+                              className={`attachment-chip${
+                                href === "#" ? " disabled" : ""
+                              }`}
+                            >
+                              <span className="material-symbols-rounded">
+                                attach_file
+                              </span>
+                              <div>
+                                <p>
+                                  {attachment.filename ||
+                                    attachment.mimeType ||
+                                    "Attachment"}
+                                </p>
+                                {attachment.size ? (
+                                  <small>{formatBytes(attachment.size)}</small>
+                                ) : null}
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </section>
         {loading && <div className="analytics-loader">Syncing data...</div>}
       </main>
