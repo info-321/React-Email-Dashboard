@@ -11,7 +11,7 @@ from email import encoders
 from email.utils import parsedate_to_datetime
 
 import requests
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -28,6 +28,7 @@ from config import (
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
 EMAIL_STORE = os.path.join(BASE_DIR, 'emails.json')
 SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'workspace_service_account.json')
 ANALYTICS_SAMPLE_FILE = os.path.join(BASE_DIR, 'analytics_sample.json')
@@ -168,9 +169,21 @@ def _cache_set(key: str, payload):
     }
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=STATIC_DIR, template_folder=STATIC_DIR)
 app.config['SECRET_KEY'] = SECRET_KEY
 CORS(app, supports_credentials=True)
+
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """
+    Serve the compiled React SPA from the static directory.
+    """
+    target = os.path.join(STATIC_DIR, path)
+    if path and os.path.exists(target) and os.path.isfile(target):
+        return send_from_directory(STATIC_DIR, path)
+    return send_from_directory(STATIC_DIR, 'index.html')
 
 
 def load_emails():
