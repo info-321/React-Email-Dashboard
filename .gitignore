@@ -13,3 +13,7 @@ venv/
 *.py[cod]
 server/static/
 !*.env.example
+!.env.example
+/data/
+/private/
+/backups/

@@ -1,0 +1,6 @@
+# A separate site block for this project. Add to the existing Caddy configuration.
+# Match the port to EWORKSPACE_PORT in this project's .env.
+eworkspace.ttwindia.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8161
+}

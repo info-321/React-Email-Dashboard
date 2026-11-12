@@ -1,0 +1,15 @@
+# Allow only the source files needed to build this application.
+**
+!Dockerfile
+!requirements.txt
+!server/
+!server/app.py
+!server/analytics_sample.json
+!server/config.example.py
+!client/
+!client/package.json
+!client/package-lock.json
+!client/public/
+!client/public/**
+!client/src/
+!client/src/**

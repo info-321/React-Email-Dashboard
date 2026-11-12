@@ -1,0 +1,54 @@
+name: eworkspace
+
+services:
+  web:
+    image: ttw-eworkspace:local
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      SECRET_KEY: ${SECRET_KEY:?Set a new SECRET_KEY in .env}
+      SESSION_COOKIE_SECURE: "true"
+      FRONTEND_BUILD_DIR: /app/client/build
+      EMAIL_STORE: /app/data/emails.json
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/workspace_service_account.json
+    ports:
+      - "127.0.0.1:${EWORKSPACE_PORT:-8161}:8000"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./private/workspace_service_account.json
+        target: /run/secrets/workspace_service_account.json
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).read()"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

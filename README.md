@@ -1,7 +1,11 @@
-# Email Hub
+# Email Dashboard (EWorkspace)
 
 React dashboard and Flask API for Google Workspace mailboxes and Gmail/Notion
 analytics.
+
+Production hostname: **https://eworkspace.ttwindia.com/**. This repository is
+`info-321/React-Email-Dashboard`, deployed separately from the existing Email Hub
+project at `emailhub.ttwindia.com`.
 
 ## Run locally on Windows
 
@@ -42,8 +46,10 @@ Workspace users, not arbitrary personal Gmail accounts.
 
 ## Production
 
-See [the VPS migration guide](deploy/README.md). Production uses a React build,
-Gunicorn as the WSGI server, and the VPS's existing reverse proxy with HTTPS.
+See [the VPS migration guide](deploy/README.md). The Docker build combines React
+and Gunicorn in a dedicated `eworkspace` Compose project. The VPS's existing
+Caddy routes `eworkspace.ttwindia.com` to `127.0.0.1:8161`. Production data and the
+Google service account key are mounted separately and excluded from the image.
 Browser API requests use the website's own domain by default. The optional
 build-time `REACT_APP_API_BASE_URL` is an origin without `/api`; it contains no
 secrets. A separate API origin also requires `CORS_ORIGINS` and compatible browser
