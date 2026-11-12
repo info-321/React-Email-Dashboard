@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
+import { API_BASE_URL, apiFetch } from "../../lib/api";
+import { sanitizeHtml, escapeHtml } from "../../lib/emailHtml";
 import "./EmailApp.css";
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const PAGE_SIZE = 25;
 const EMOJI_PRESET = ["??", "??", "??", "??", "??", "??", "??", "??", "??", "?", "??"];
 
@@ -59,13 +59,8 @@ const decodeEntities = (input) => {
   return textarea.value;
 };
 
-const sanitizeHtml = (html = "") =>
-  html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-
 const formatPlainText = (text = "") =>
-  text.replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br />");
+  escapeHtml(text).replace(/\n/g, "<br />");
 
 const buildAttachmentUrl = (mailbox, messageId, attachment) => {
   if (!mailbox || !messageId || !attachment?.attachmentId) return "#";
@@ -141,7 +136,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme, onOpenAnalytics
       try {
         setOverviewLoading(true);
         setOverviewError("");
-        const response = await fetch(
+        const response = await apiFetch(
           `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
             mailbox
           )}/overview`
@@ -208,7 +203,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme, onOpenAnalytics
         if (activeQuery) params.append("query", activeQuery);
         if (pageToken) params.append("pageToken", pageToken);
 
-        const response = await fetch(
+        const response = await apiFetch(
           `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
             mailbox
           )}/messages?${params.toString()}`
@@ -403,7 +398,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme, onOpenAnalytics
     const targets = explicitTargets || availableTargets;
     if (!mailbox || !targets.length) return;
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
           mailbox
         )}/messages/bulk`,
@@ -521,7 +516,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme, onOpenAnalytics
     const attachmentsList = composeForm.attachments
       .map(
         (file, idx) =>
-          `<li>${idx + 1}. ${file.filename} (${Math.round(file.size / 1024)} KB)</li>`
+          `<li>${idx + 1}. ${escapeHtml(file.filename)} (${Math.round(file.size / 1024)} KB)</li>`
       )
       .join("");
     printWindow.document.write(`
@@ -536,20 +531,20 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme, onOpenAnalytics
           </style>
         </head>
         <body>
-          <h2>${composeForm.subject || "(No subject)"}</h2>
-          <p><strong>To:</strong> ${composeForm.to || "—"}</p>
+          <h2>${escapeHtml(composeForm.subject || "(No subject)")}</h2>
+          <p><strong>To:</strong> ${escapeHtml(composeForm.to || "—")}</p>
           ${
             composeForm.cc
-              ? `<p><strong>CC:</strong> ${composeForm.cc}</p>`
+              ? `<p><strong>CC:</strong> ${escapeHtml(composeForm.cc)}</p>`
               : ""
           }
           ${
             composeForm.bcc
-              ? `<p><strong>BCC:</strong> ${composeForm.bcc}</p>`
+              ? `<p><strong>BCC:</strong> ${escapeHtml(composeForm.bcc)}</p>`
               : ""
           }
           <h3>Message</h3>
-          <pre>${composeForm.body || ""}</pre>
+          <pre>${escapeHtml(composeForm.body)}</pre>
           ${
             composeForm.attachments.length
               ? `<h4>Attachments</h4><ul>${attachmentsList}</ul>`
@@ -581,7 +576,7 @@ const EmailApp = ({ mailbox, onBack, isLightMode, onToggleTheme, onOpenAnalytics
     if (!mailbox) return;
     setComposeStatus({ loading: true, error: "", success: "" });
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_BASE_URL}/api/mailbox/${encodeURIComponent(mailbox)}/send`,
         {
           method: "POST",

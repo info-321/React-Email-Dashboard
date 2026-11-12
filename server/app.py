@@ -2,6 +2,7 @@ import base64
 import io
 import json
 import os
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
@@ -11,7 +12,7 @@ from email import encoders
 from email.utils import parsedate_to_datetime
 
 import requests
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -28,9 +29,21 @@ from config import (
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(BASE_DIR, 'static')
-EMAIL_STORE = os.path.join(BASE_DIR, 'emails.json')
-SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'workspace_service_account.json')
+LEGACY_STATIC_DIR = os.path.join(BASE_DIR, 'static')
+STATIC_DIR = os.path.abspath(os.getenv('FRONTEND_BUILD_DIR') or (
+    LEGACY_STATIC_DIR if os.path.isfile(os.path.join(LEGACY_STATIC_DIR, 'index.html'))
+    else os.path.join(BASE_DIR, '..', 'client', 'build')
+))
+EMAIL_STORE = os.getenv('EMAIL_STORE', os.path.join(BASE_DIR, 'emails.json'))
+SERVICE_ACCOUNT_FILE = os.getenv(
+    'GOOGLE_APPLICATION_CREDENTIALS',
+    os.path.join(BASE_DIR, 'workspace_service_account.json'),
+)
+ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', ADMIN_USERNAME)
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', ADMIN_PASSWORD)
+SECRET_KEY = os.getenv('SECRET_KEY', SECRET_KEY)
+if not all(isinstance(value, str) and value for value in (ADMIN_USERNAME, ADMIN_PASSWORD, SECRET_KEY)):
+    raise RuntimeError('ADMIN_USERNAME, ADMIN_PASSWORD and SECRET_KEY must be configured.')
 ANALYTICS_SAMPLE_FILE = os.path.join(BASE_DIR, 'analytics_sample.json')
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
@@ -169,9 +182,64 @@ def _cache_set(key: str, payload):
     }
 
 
-app = Flask(__name__, static_folder=STATIC_DIR, template_folder=STATIC_DIR)
-app.config['SECRET_KEY'] = SECRET_KEY
-CORS(app, supports_credentials=True)
+app = Flask(__name__, static_folder=None, template_folder=STATIC_DIR)
+app.config.update(
+    SECRET_KEY=SECRET_KEY,
+    SESSION_COOKIE_NAME='emailhub_session',
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    MAX_CONTENT_LENGTH=35 * 1024 * 1024,
+)
+allowed_origins = [value.strip() for value in os.getenv('CORS_ORIGINS', '').split(',') if value.strip()]
+if allowed_origins:
+    CORS(app, resources={r'/api/*': {'origins': allowed_origins}}, supports_credentials=True)
+
+
+@app.before_request
+def protect_api():
+    if not request.path.startswith('/api/') or request.method == 'OPTIONS':
+        return None
+    public_endpoints = {'login', 'session_status', 'health'}
+    if request.endpoint not in public_endpoints and not session.get('authenticated'):
+        return jsonify({'error': 'Please sign in to continue.'}), 401
+    if request.method not in {'GET', 'HEAD', 'OPTIONS'}:
+        expected = session.get('csrf_token')
+        supplied = request.headers.get('X-CSRF-Token', '')
+        if not expected or not secrets.compare_digest(expected.encode(), supplied.encode()):
+            return jsonify({'error': 'Invalid session token. Refresh the page and try again.'}), 403
+
+
+@app.after_request
+def security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.get('/api/health')
+def health():
+    return jsonify({'status': 'ok'})
+
+
+@app.get('/api/session')
+def session_status():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_urlsafe(32)
+    return jsonify({
+        'authenticated': bool(session.get('authenticated')),
+        'csrfToken': session['csrf_token'],
+    })
+
+
+@app.post('/api/logout')
+def logout():
+    session.clear()
+    return jsonify({'success': True})
 
 
 @app.route('/', defaults={'path': ''})
@@ -180,6 +248,8 @@ def serve_frontend(path):
     """
     Serve the compiled React SPA from the static directory.
     """
+    if path.startswith('api/'):
+        return jsonify({'error': 'API endpoint not found.'}), 404
     target = os.path.join(STATIC_DIR, path)
     if path and os.path.exists(target) and os.path.isfile(target):
         return send_from_directory(STATIC_DIR, path)
@@ -361,12 +431,22 @@ def fetch_messages(service, user_email: str, label_ids=None, query=None, max_res
 @app.post('/api/login')
 def login():
     payload = request.get_json() or {}
-    username = payload.get('username', '').strip()
-    password = payload.get('password', '').strip()
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Invalid login request.'}), 400
+    username = payload.get('username', '')
+    password = payload.get('password', '')
+    if not isinstance(username, str) or not isinstance(password, str):
+        return jsonify({'success': False, 'message': 'Invalid login request.'}), 400
 
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        return jsonify({'success': True}), 200
+    if (secrets.compare_digest(username.strip().encode(), ADMIN_USERNAME.encode())
+            and secrets.compare_digest(password.encode(), ADMIN_PASSWORD.encode())):
+        session.clear()
+        session['authenticated'] = True
+        session['csrf_token'] = secrets.token_urlsafe(32)
+        session.permanent = True
+        return jsonify({'success': True, 'csrfToken': session['csrf_token']}), 200
 
+    session.pop('authenticated', None)
     return jsonify({'success': False, 'message': 'Invalid username or password'}), 401
 
 
@@ -1418,4 +1498,4 @@ def download_attachment(email, message_id, attachment_id):
 if __name__ == '__main__':
     if not os.path.exists(EMAIL_STORE):
         persist_emails([])
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='127.0.0.1', port=5001, debug=os.getenv('FLASK_DEBUG') == '1')

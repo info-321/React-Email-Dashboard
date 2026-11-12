@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { API_BASE_URL, apiFetch } from "../../lib/api";
+import { sanitizeHtml, escapeHtml } from "../../lib/emailHtml";
 import "./analytics.css";
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const TABLE_PAGE_SIZE = 10;
 
 const defaultRange = () => {
@@ -43,35 +43,6 @@ const stripHtml = (value = "") => {
   const temp = window.document.createElement("div");
   temp.innerHTML = value;
   return temp.textContent || temp.innerText || "";
-};
-
-const escapeHtml = (value = "") =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-
-const sanitizeHtml = (value = "") => {
-  if (!value) return "";
-  if (typeof window === "undefined") {
-    return value.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-  }
-  const parser = new window.DOMParser();
-  const jsPrefix = ["java", "script:"].join("");
-  const doc = parser.parseFromString(value, "text/html");
-  doc.querySelectorAll("script,style,link,meta").forEach((node) => node.remove());
-  doc.body.querySelectorAll("*").forEach((node) => {
-    Array.from(node.attributes).forEach((attr) => {
-      const attrName = attr.name.toLowerCase();
-      const attrValue = (attr.value || "").toLowerCase().trim();
-      if (attrName.startsWith("on") || attrValue.startsWith(jsPrefix)) {
-        node.removeAttribute(attr.name);
-      }
-    });
-  });
-  return doc.body.innerHTML;
 };
 
 const formatBytes = (bytes) => {
@@ -354,7 +325,7 @@ const Analytics = ({ mailbox, onBack, isLightMode = false, onToggleTheme }) => {
         if (mailbox) params.append("mailbox", mailbox);
         if (startDate) params.append("startDate", startDate);
         if (endDate) params.append("endDate", endDate);
-        const response = await fetch(
+        const response = await apiFetch(
           `${API_BASE_URL}/api/analytics/notion?${params.toString()}`,
           { signal: controller.signal }
         );
@@ -550,7 +521,7 @@ const Analytics = ({ mailbox, onBack, isLightMode = false, onToggleTheme }) => {
         startDate,
         endDate,
       });
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_BASE_URL}/api/mailbox/${encodeURIComponent(
           mailbox
         )}/peer-messages?${params.toString()}`

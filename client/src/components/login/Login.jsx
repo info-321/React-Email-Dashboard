@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { API_BASE_URL, apiFetch, setCsrfToken } from "../../lib/api";
 import "./login.css";
 
 const Login = ({ onSuccess }) => {
@@ -15,7 +16,7 @@ const Login = ({ onSuccess }) => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:5001/api/login", {
+      const response = await apiFetch(`${API_BASE_URL}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -28,6 +29,7 @@ const Login = ({ onSuccess }) => {
         throw new Error(data.message || "Unable to login");
       }
 
+      setCsrfToken(data.csrfToken);
       if (typeof onSuccess === "function") {
         onSuccess();
       }

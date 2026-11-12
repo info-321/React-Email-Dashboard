@@ -1,9 +1,15 @@
 # Secrets and environment-specific config
 server/workspace_service_account.json
 .env
+.env.*
 *.env
 *.key
 *.pem
 __pycache__/
 server/emails.json
 server/config.py
+.venv/
+venv/
+*.py[cod]
+server/static/
+!*.env.example

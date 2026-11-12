@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL, apiFetch } from "../../lib/api";
 import "./dashboard.css";
-
-const API_BASE_URL = "http://localhost:5001/api";
 
 const Dashboard = ({
   onLogout,
@@ -19,7 +18,7 @@ const Dashboard = ({
   useEffect(() => {
     const fetchEmails = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/emails`);
+        const response = await apiFetch(`${API_BASE_URL}/api/emails`);
         const data = await response.json();
         if (response.ok) {
           setEmails(data.emails || []);
@@ -43,7 +42,7 @@ const Dashboard = ({
     if (isSaving) return;
 
     setIsSaving(true);
-    fetch(`${API_BASE_URL}/emails`, {
+    apiFetch(`${API_BASE_URL}/api/emails`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: value }),
@@ -63,7 +62,7 @@ const Dashboard = ({
 
   const handleRemoveEmail = (email) => {
     setRemovingEmail(email);
-    fetch(`${API_BASE_URL}/emails`, {
+    apiFetch(`${API_BASE_URL}/api/emails`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
