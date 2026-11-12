@@ -1,0 +1,113 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eworkspace-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Test application
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Test backend
+        run: |
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s server/tests -v
+
+      - name: Check deployment shell scripts
+        run: |
+          bash -n deploy/setup-hostinger-actions.sh
+          bash -n deploy/hostinger-entrypoint.sh
+          bash -n deploy/hostinger-release.sh
+          python -m unittest discover -s deploy/tests -v
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Test and build frontend
+        working-directory: client
+        env:
+          CI: 'true'
+        run: |
+          npm ci --no-audit --no-fund
+          npm test -- --watchAll=false --runInBand
+          npm run build
+
+  deploy:
+    name: Deploy to Hostinger
+    needs: verify
+    if: github.ref == 'refs/heads/main' && vars.HOSTINGER_DEPLOY_READY == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: hostinger-eworkspace
+      url: https://eworkspace.ttwindia.com
+    steps:
+      - name: Deploy the tested commit over SSH
+        shell: bash
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          HOSTINGER_KNOWN_HOSTS: ${{ secrets.HOSTINGER_KNOWN_HOSTS }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          : "${HOSTINGER_HOST:?Missing HOSTINGER_HOST secret}"
+          : "${HOSTINGER_USER:?Missing HOSTINGER_USER secret}"
+          : "${HOSTINGER_SSH_KEY:?Missing HOSTINGER_SSH_KEY secret}"
+          : "${HOSTINGER_KNOWN_HOSTS:?Missing HOSTINGER_KNOWN_HOSTS secret}"
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          umask 077
+          key="$RUNNER_TEMP/eworkspace-deploy-key"
+          known_hosts="$RUNNER_TEMP/eworkspace-known-hosts"
+          trap 'rm -f -- "$key" "$known_hosts"' EXIT
+          printf '%s\n' "$HOSTINGER_SSH_KEY" | tr -d '\r' > "$key"
+          printf '%s\n' "$HOSTINGER_KNOWN_HOSTS" | tr -d '\r' > "$known_hosts"
+          ssh-keygen -y -P '' -f "$key" > /dev/null
+
+          ssh -T -p 22 \
+            -i "$key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts" \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "$HOSTINGER_USER@$HOSTINGER_HOST" "deploy $DEPLOY_SHA"
+
+      - name: Check public HTTPS endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --max-time 20 \
+            https://eworkspace.ttwindia.com/api/health \
+            | python3 -c 'import json,sys; assert json.load(sys.stdin).get("status") == "ok"'
+          printf 'Deployed commit `%s` to https://eworkspace.ttwindia.com/\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

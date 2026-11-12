@@ -17,3 +17,4 @@ server/static/
 /data/
 /private/
 /backups/
+/.deploy/

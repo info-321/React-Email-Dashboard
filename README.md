@@ -46,6 +46,8 @@ Workspace users, not arbitrary personal Gmail accounts.
 
 ## Production
 
+For automatic deployment on pushes to `main`, see [GitHub Actions setup](deploy/ACTIONS.md).
+
 See [the VPS migration guide](deploy/README.md). The Docker build combines React
 and Gunicorn in a dedicated `eworkspace` Compose project. The VPS's existing
 Caddy routes `eworkspace.ttwindia.com` to `127.0.0.1:8161`. Production data and the

@@ -228,6 +228,8 @@ For updates, keep a known-good image/revision, pull this repository with
 Container replacement briefly interrupts this app; use staged releases if you
 need uninterrupted availability. Do not publish private files when syncing Git.
 
+For automatic deployment of future pushes to `main`, see [GitHub Actions setup](ACTIONS.md).
+
 References: [Docker project isolation](https://docs.docker.com/compose/how-tos/project-name/),
 [Caddy site blocks](https://caddyserver.com/docs/caddyfile/concepts),
 [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https),
